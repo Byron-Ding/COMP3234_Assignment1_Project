@@ -1,0 +1,15 @@
+1001 Authentication successful
+1002 Authentication failed
+
+3001 number_of_all _rooms number_of_players_in_room1 ... number_of_players_in_roomn
+
+3011 Wait
+3012 Game started. Please guess true or false
+3013 The room is full
+
+3023 The result is a tie
+3021 You are the winne
+3022 You lost this game
+
+4001 Bye bye
+4002 Unrecognized message
