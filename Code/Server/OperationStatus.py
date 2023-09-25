@@ -8,7 +8,7 @@ class OperationStatus:
     authentication_failed: str = "1002 Authentication failed"
 
     #  3001 number_of_all_rooms number_of_players_in_room_1 ... number_of_players_in_room_n
-    all_rooms_status: str = "3001 "
+    list_rooms_status: str = "3001"
     wait: str = "3011 Wait"
     game_started: str = "3012 Game started. Please guess true or false"
     room_full: str = "3013 The room is full"

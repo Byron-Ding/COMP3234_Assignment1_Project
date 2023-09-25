@@ -1,5 +1,6 @@
 import GameRoom
 import Player
+import OperationStatus
 
 
 class GameHall:
@@ -40,7 +41,6 @@ class GameHall:
             return False
         # player should in the player list
 
-
         if player in self.player_list:
             # find the room
             # get into the room
@@ -49,3 +49,26 @@ class GameHall:
 
         else:
             return False
+
+    def list_room_and_status(self) -> str:
+        """
+        return a string showing the room status
+        the format is
+        3001 number_of_all_rooms number_of_players_in_room_1 ... number_of_players_in_room_n
+        """
+        # create list
+        # [3001, number of all rooms, number of players in room 1, ... number of players in room n]
+        # head, total information
+        output_list: list[int | str] = [OperationStatus.OperationStatus.list_rooms_status,
+                                        self.game_room_number]
+        # room status list
+        room_status_list: list[int] = [len(each_room.player_list) for each_room in self.game_room_list]
+
+        # final combined list
+        output_list.extend(room_status_list)
+
+        # convert to string
+        output_str: str = " ".join([str(each) for each in output_list])
+
+        return output_str
+
