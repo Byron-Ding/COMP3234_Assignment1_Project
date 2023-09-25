@@ -1,6 +1,9 @@
 import UserInfoFile
 import threading
 import socket
+import sys
+
+import OperationStatus
 
 
 # Default Encoding is UTF-8
@@ -107,6 +110,50 @@ class GameServerThreadEachPlayer(threading.Thread):
         """
         super().start()
         # ——————————————————————————User Login—————————————————————————— #
+        # User Login
+        # until login successfully or press Ctrl+C
+        # 直到登录成功或按Ctrl+C
+        login_result: bool = False
+        while login_result is not True:
+            try:
+                self.login()
+            except KeyboardInterrupt:
+                # press Ctrl+C
+                # 按Ctrl+C
+                print("User Press Ctrl+C")
+                break
+            except Exception as e:
+                # other exceptions
+                # 其他异常
+                print(e)
+                break
+            else:
+                if login_result:
+                    # login successfully
+                    # 登录成功
+                    # send the status code to the client
+                    # 将状态码发送给客户端
+                    msg: str = OperationStatus.OperationStatus.authentication_successful
+                    self.client_socket.send(msg.encode())
+                    break
+                else:
+                    # login failed
+                    # 登录失败
+                    # send the status code to the client
+                    # 将状态码发送给客户端
+                    msg: str = OperationStatus.OperationStatus.authentication_failed
+                    self.client_socket.send(msg.encode())
+                    continue
+
+        # send the message to the client
+        # 将消息发送给客户端
+        pass
+
+    def run(self):
+        ...
+
+
+    def login(self):
         # ask for the username
         # 请求用户名
         self.client_socket.send("Please input your user name:".encode())
@@ -134,7 +181,30 @@ class GameServerThreadEachPlayer(threading.Thread):
 
         # check the username and password
         # 检查用户名和密码
-        pass
+        if self.user_info_file.check_account_password(username, password):
+            return True
+        else:
+            return False
 
-    def run(self):
-        ...
+
+
+
+if __name__ == '__main__':
+    # create the GameServer object
+    # 创建GameServer对象
+    # input from the command line by python3 GameServer.py <listening_port> <user_info_file_path>
+    # 从命令行输入 python3 GameServer.py <listening_port> <user_info_file_path>
+    if len(sys.argv) != 3:
+        print("Usage: python3 GameServer.py <listening_port> <user_info_file_path>")
+        sys.exit(1)
+
+    # extract tuple
+    listening_port: int = int(sys.argv[1])
+    user_info_file_path: str = sys.argv[2]
+
+    # create the GameServer
+    game_server: GameServer = GameServer(listening_port, user_info_file_path)
+
+    # start the server
+    # 开始服务器
+    game_server.start()

@@ -1,5 +1,6 @@
 import socket
 import threading
+import sys
 
 
 
@@ -34,3 +35,14 @@ class GameClient:
             self.client_socket.connect((self.server_host, self.server_port))
         except Exception as e:
             print(e)
+
+
+if __name__ == '__main__':
+    if len(sys.argv) != 3:
+        print("Usage: python3 GameClient.py <server_host> <server_port>")
+        sys.exit(1)
+
+    server_host: str = sys.argv[1]
+    server_port: int = int(sys.argv[2])
+
+    game_client: GameClient = GameClient(server_host, server_port)
