@@ -57,7 +57,8 @@ class GameServer:
             client_accept: tuple = server_socket.accept()
             # create a thread to handle the connection, it does not affect the main thread
             # 分完线程不影响主线程，主线程继续循环接受连接，分线程处理连接
-            game_server_thread: GameServerThreadEachPlayer = GameServerThreadEachPlayer(client_accept)
+            game_server_thread: GameServerThreadEachPlayer = GameServerThreadEachPlayer(client_accept,
+                                                                                        self.user_info_file)
             # start the thread
             # 开始线程
             game_server_thread.start()
@@ -116,7 +117,7 @@ class GameServerThreadEachPlayer(threading.Thread):
         login_result: bool = False
         while login_result is not True:
             try:
-                self.login()
+                login_result = self.login()
             except KeyboardInterrupt:
                 # press Ctrl+C
                 # 按Ctrl+C
@@ -135,6 +136,7 @@ class GameServerThreadEachPlayer(threading.Thread):
                     # 将状态码发送给客户端
                     msg: str = OperationStatus.OperationStatus.authentication_successful
                     self.client_socket.send(msg.encode())
+                    self.client_socket.send("\n".encode())
                     break
                 else:
                     # login failed
@@ -143,6 +145,7 @@ class GameServerThreadEachPlayer(threading.Thread):
                     # 将状态码发送给客户端
                     msg: str = OperationStatus.OperationStatus.authentication_failed
                     self.client_socket.send(msg.encode())
+                    self.client_socket.send("\n".encode())
                     continue
 
         # send the message to the client
@@ -160,6 +163,7 @@ class GameServerThreadEachPlayer(threading.Thread):
         # wait for the username
         # 等待用户名
         username: str = self.client_socket.recv(1024).decode()
+        print(username)
         # ask for the password
 
         # 请求密码
@@ -167,6 +171,7 @@ class GameServerThreadEachPlayer(threading.Thread):
         # wait for the password
         # 等待密码
         password: str = self.client_socket.recv(1024).decode()
+        print(password)
 
         '''
         After the user has input its password,
@@ -176,7 +181,7 @@ class GameServerThreadEachPlayer(threading.Thread):
         #  用户输入密码后，服务端回显用户名和密码至客户端，格式如下
         #  格式 /login user_name password
         #  Do Not Forget to Encode and Decode when Transferring Data
-        encoded_username_password: bytes = f"/login {username} {password}".encode()
+        encoded_username_password: bytes = f"/login {username} {password}\n".encode()
         self.client_socket.send(encoded_username_password)
 
         # check the username and password
@@ -185,7 +190,6 @@ class GameServerThreadEachPlayer(threading.Thread):
             return True
         else:
             return False
-
 
 
 

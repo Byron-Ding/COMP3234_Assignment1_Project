@@ -1,6 +1,7 @@
 import socket
 import threading
 import sys
+import OperationStatus
 
 
 
@@ -35,6 +36,63 @@ class GameClient:
             self.client_socket.connect((self.server_host, self.server_port))
         except Exception as e:
             print(e)
+
+
+        # start the client
+        # 开始客户端
+        self.start()
+
+    def start(self):
+        # Get input for sending
+        while True:
+            try:
+                # username prompt
+                # 用户名提示
+                received_message: str = self.client_socket.recv(1024).decode()
+                print(received_message, end="")
+
+                # input the username
+                # 输入用户名
+                username: str = input()
+                # send the username
+                # 发送用户名
+                self.client_socket.send(username.encode())
+
+                # password prompt
+                # 密码提示
+                received_message: str = self.client_socket.recv(1024).decode()
+                print(received_message, end="")
+
+                # input the password
+                # 输入密码
+                password: str = input()
+                # send the password
+                # 发送密码
+                self.client_socket.send(password.encode())
+
+                # verify the username and password and get the result
+                # 确认以回显用户名和密码 并获取结果，成功还是失败
+                received_message: str = self.client_socket.recv(1024).decode()
+                print(received_message, end="")
+
+                # if the username and password are correct, break the loop
+                # 如果用户名和密码正确，退出循环
+                return_state_msg: str = received_message.split("\n")[1]
+
+                if return_state_msg == OperationStatus.OperationStatus.authentication_successful:
+                    break
+
+            except KeyboardInterrupt:
+                print('\n')
+                print("Terminated abnormally!!")
+                self.client_socket.close()
+                sys.exit(1)
+
+            except Exception as e:
+                print(e)
+                self.client_socket.close()
+                sys.exit(1)
+
 
 
 if __name__ == '__main__':
