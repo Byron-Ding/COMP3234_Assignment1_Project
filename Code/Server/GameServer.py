@@ -115,49 +115,9 @@ class GameServerThreadEachPlayer(threading.Thread):
         # User Login
         # until login successfully or press Ctrl+C
         # 直到登录成功或按Ctrl+C
-        login_result: bool = False
-        while login_result is not True:
-            try:
-                # STEP1.0.0.0 - 1.0.2.0
-                login_result = self.login()
-                if login_result:
-                    # login successfully
-                    # 登录成功
-                    # send the status code to the client
-                    # 将状态码发送给客户端
-                    # STEP1.0.3.0
-                    msg: str = OperationStatus.OperationStatus.authentication_successful
-                    self.client_socket.send(msg.encode())
-                    # STEP1.0.3.1
-                    # receive the message from the client, check the message is reached
-                    # 接收客户端的消息，检查消息是否到达
-                    received_message: str = self.client_socket.recv(1024).decode()
-                    break
-                else:
-                    # login failed
-                    # 登录失败
-                    # send the status code to the client
-                    # 将状态码发送给客户端
-                    # STEP1.0.3.0
-                    msg: str = OperationStatus.OperationStatus.authentication_failed
-                    self.client_socket.send(msg.encode())
-                    # STEP1.0.3.1
-                    # receive the message from the client, check the message is reached
-                    # 接收客户端的消息，检查消息是否到达
-                    self.client_socket.recv(1024).decode()
-
-            except KeyboardInterrupt:
-                # press Ctrl+C
-                # 按Ctrl+C
-                print("User Press Ctrl+C")
-                break
-            except Exception as e:
-                # other exceptions
-                # 其他异常
-                print(e)
-                break
-
+        self.login()
         # ——————————————————————————User Login—————————————————————————— #
+
         # ——————————————————————————Game Hall—————————————————————————— #
         # wait for the user to choose the operation
         # 等待用户选择操作
@@ -191,13 +151,38 @@ class GameServerThreadEachPlayer(threading.Thread):
 
                 # send the room_number to the server
 
+        # ——————————————————————————Game Hall—————————————————————————— #
 
 
     def run(self):
         ...
 
+    def login(self) -> None:
+        login_result: bool = False
+        while login_result is not True:
+            try:
+                # STEP1.0.0.0 - 1.0.2.1
+                login_result = self.login_process()
+                # STEP1.0.3.0 - 1.0.3.1
+                self.login_result_response(login_result)
 
-    def login(self):
+                # if login successfully, then enter the game hall
+                # 如果登录成功，则进入游戏大厅
+                if login_result:
+                    break
+
+            except KeyboardInterrupt:
+                # press Ctrl+C
+                # 按Ctrl+C
+                print("User Press Ctrl+C")
+                break
+            except Exception as e:
+                # other exceptions
+                # 其他异常
+                print(e)
+                break
+
+    def login_process(self):
         """
         Login, ask for the username and password, and check the username and password
         登录，请求用户名和密码，并检查用户名和密码
@@ -212,6 +197,10 @@ class GameServerThreadEachPlayer(threading.Thread):
         # 等待用户名
         # STEP1.0.0.1
         username: str = self.client_socket.recv(1024).decode()
+        # del the head, the format is username:username
+        # 删除头，格式 username:username
+        # Allow empty username
+        username = username[9:]
         print(username)
         # ask for the password
 
@@ -222,6 +211,10 @@ class GameServerThreadEachPlayer(threading.Thread):
         # STEP1.0.1.1
         # 等待密码
         password: str = self.client_socket.recv(1024).decode()
+        # del the head, the format is password:password
+        # 删除头，格式 password:password
+        # Allow empty password
+        password = password[9:]
         print(password)
 
         '''
@@ -263,6 +256,40 @@ class GameServerThreadEachPlayer(threading.Thread):
             return True
         else:
             return False
+
+    def login_result_response(self, login_result: bool) -> None:
+        """
+        Send the login result to the client
+        将登录结果发送给客户端
+
+        :param login_result: Whether the login is successful
+        :return: None
+        """
+        if login_result:
+            # login successfully
+            # 登录成功
+            # send the status code to the client
+            # 将状态码发送给客户端
+            # STEP1.0.3.0
+            msg: str = OperationStatus.OperationStatus.authentication_successful
+            self.client_socket.send(msg.encode())
+            # STEP1.0.3.1
+            # receive the message from the client, check the message is reached
+            # 接收客户端的消息，检查消息是否到达
+            self.client_socket.recv(1024).decode()
+
+        else:
+            # login failed
+            # 登录失败
+            # send the status code to the client
+            # 将状态码发送给客户端
+            # STEP1.0.3.0
+            msg: str = OperationStatus.OperationStatus.authentication_failed
+            self.client_socket.send(msg.encode())
+            # STEP1.0.3.1
+            # receive the message from the client, check the message is reached
+            # 接收客户端的消息，检查消息是否到达
+            self.client_socket.recv(1024).decode()
 
 
 

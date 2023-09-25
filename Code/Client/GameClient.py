@@ -67,6 +67,9 @@ class GameClient:
                 # input the username
                 # 输入用户名
                 username: str = input()
+                # Add a head of sending, to allow empty username
+                # 添加发送的头，允许空用户名
+                username = "username:" + username
                 # send the username
                 # 发送用户名
                 # STEP1.0.0.1
@@ -82,6 +85,9 @@ class GameClient:
                 # input the password
                 # 输入密码
                 password: str = input()
+                # Add a head of sending, to allow empty password
+                # 添加发送的头，允许空密码
+                password = "password:" + password
                 # send the password
                 # STEP1.0.1.1
                 # 发送密码
