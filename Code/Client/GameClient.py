@@ -20,6 +20,7 @@ class GameClient:
         # server's port it is listening on
         self.server_port: int = server_port
 
+
         # create the socket
         # AF_INET is the address family for IPv4
         # SOCK_STREAM is the socket type for TCP

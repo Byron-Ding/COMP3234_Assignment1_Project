@@ -4,6 +4,8 @@ import socket
 import sys
 
 import OperationStatus
+import GameHall
+
 
 
 # Default Encoding is UTF-8
@@ -26,6 +28,7 @@ class GameServer:
 
         # create the UserInfoFile object
         self.user_info_file: UserInfoFile = UserInfoFile.UserInfoFile(self.account_password_file)
+
 
     # start the server, for handling connections
     # 主线程用于接受连接
@@ -58,7 +61,7 @@ class GameServer:
             # create a thread to handle the connection, it does not affect the main thread
             # 分完线程不影响主线程，主线程继续循环接受连接，分线程处理连接
             game_server_thread: GameServerThreadEachPlayer = GameServerThreadEachPlayer(client_accept,
-                                                                                        self.user_info_file)
+                                                                                        self)
             # start the thread
             # 开始线程
             game_server_thread.start()
@@ -78,7 +81,7 @@ class GameServerThreadEachPlayer(threading.Thread):
 
     # multiple threads of client connections
     def __init__(self, client_accept: [socket.socket, tuple],
-                 user_info_file: UserInfoFile) -> None:
+                 game_server: GameServer) -> None:
         """
         The Game Server Thread
         :param client_accept: the client accepted, socket.accept()
@@ -91,7 +94,7 @@ class GameServerThreadEachPlayer(threading.Thread):
         self.client_address: tuple = client_accept[1]
 
         # UserInfoFile
-        self.user_info_file: UserInfoFile = user_info_file
+        self.user_info_file: UserInfoFile = game_server.user_info_file
 
         '''
         player's status/玩家状态
@@ -102,6 +105,10 @@ class GameServerThreadEachPlayer(threading.Thread):
         4. Playing a game
         '''
         self.each_player_status: int = 1
+
+        # create Game Hall
+        # 创建游戏大厅
+        self.game_hall: GameHall.GameHall = GameHall.GameHall()
 
 
     def start(self) -> None:
@@ -157,6 +164,12 @@ class GameServerThreadEachPlayer(threading.Thread):
 
 
     def login(self):
+        """
+        Login, ask for the username and password, and check the username and password
+        登录，请求用户名和密码，并检查用户名和密码
+
+        :return: Whether the login is successful
+        """
         # ask for the username
         # 请求用户名
         self.client_socket.send("Please input your user name:".encode())
