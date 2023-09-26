@@ -36,19 +36,28 @@ class GameHall:
         else:
             return False
 
-    def enter_room(self, player: Player.Player, room_id: int) -> bool:
-        if room_id > self.game_room_number:
-            return False
-        # player should in the player list
+    def enter_room(self, player: Player.Player, room_id: int) -> True:
+        """
+        Enter the room
+        if success, return True
+        if failed, raise the exception depends on the reason
 
+        :param player: the player Object
+        :param room_id: the room id
+        :return:
+        """
+        # room id should be in the room list, not out of range
+        if room_id > self.game_room_number:
+            raise OperationStatus.InvalidOperationError("The room id is out of range")
+
+        # player should in the player list
         if player in self.player_list:
             # find the room
             # get into the room
             # if success it will return True
             return self.game_room_list[room_id].add_player(player)
-
         else:
-            return False
+            raise OperationStatus.PlayerNotFoundError("The player is not in the player list")
 
     def list_room_and_status(self) -> str:
         """

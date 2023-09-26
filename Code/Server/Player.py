@@ -9,6 +9,8 @@ class Player:
 
     user_status: int
 
+    room_id: int = -1
+
 
 if __name__ == '__main__':
     # test the class

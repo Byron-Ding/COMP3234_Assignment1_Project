@@ -48,6 +48,7 @@ class GameClient:
 
     def start(self):
         self.login()
+        self.game_hall_loop()
 
 
     def login(self) -> None:
@@ -145,10 +146,20 @@ class GameClient:
             # 发送命令到服务器
             self.server_socket.send(command.encode())
 
-            # get the server's response
-            # 获得服务器返回的消息
+            # STEP1.1.1.0
+            # get the server's response, exception or success
+            # 获得服务器返回的消息，异常还是成功
             received_message: str = self.server_socket.recv(1024).decode()
             print(received_message)
+
+            # STEP1.1.1.1
+            # tell the server, I received the message
+            self.server_socket.send("Client Received".encode())
+
+            # if success, break the loop
+            # 如果成功
+            if received_message == OperationStatus.OperationStatus.wait:
+                break
 
 
 

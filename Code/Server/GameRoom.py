@@ -1,4 +1,5 @@
 import Player
+import OperationStatus
 
 
 class GameRoom:
@@ -11,16 +12,32 @@ class GameRoom:
 
         # create the player list
         # each room 2 players, just record the player name
-        self.player_list: list[Player.Player, Player.Player] = []
+        self.player_list: list[Player.Player] = []
 
-    def add_player(self, player: Player.Player) -> bool:
+    def check_full(self) -> bool:
+        """
+        Check whether the room is full
+        :return: True or False
+        """
+        if len(self.player_list) == self.MAX_PLAYER_NUMBER:
+            return True
+        else:
+            return False
+
+    def add_player(self, player: Player.Player) -> True:
         """
         Add the player to the room
+        Check whether is full and the player is already in the room
+        Assume the player is in the room and could not add again
+        If the room is full, raise the exception
+        If success, return True
+
         :param player: the player
         :return: None
         """
-        if len(self.player_list) >= self.MAX_PLAYER_NUMBER:
-            return False
+        if self.check_full():
+            # the room is full
+            raise OperationStatus.RoomFullError("The room is full")
         else:
             self.player_list.append(player)
             return True

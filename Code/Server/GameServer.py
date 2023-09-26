@@ -123,12 +123,13 @@ class GameServerThreadEachPlayer(threading.Thread):
         # 等待用户选择操作
         while True:
             # STEP1.1.0.0
-            # sent the msg to the client, say you are ready to send the command
+            # sent the error_msg to the client, say you are ready to send the command
             # 将消息发送给客户端，表示你可以发送命令了
             self.client_socket.send("Server Ready".encode())
 
             # get the command
             # 获取命令
+            # STEP1.1.0.1
             user_command: str = self.client_socket.recv(1024).decode()
 
             # /list to list all the rooms
@@ -142,14 +143,58 @@ class GameServerThreadEachPlayer(threading.Thread):
 
                 # send the command to the server
                 # 将命令发送给服务器
+                # STEP1.1.1.0
                 self.client_socket.send(room_status.encode())
+                # ensure the client received the message, the msg is "Client Received"
+                # 确保客户端收到消息，消息是"Client Received"
+                # STEP1.1.1.1
+                self.client_socket.recv(1024).decode()
 
             elif matched_command := re.fullmatch(r"/enter (?P<target_room_number>\d+)", user_command):
                 # command should be in /enter <target_room_number>
                 # get the target room number
                 room_number_enter: int = matched_command.group("target_room_number")
 
-                # send the room_number to the server
+                # enter the room
+                # 进入房间
+                try:
+                    # if the room is full,
+                    status = self.game_hall.enter_room(self.player, room_number_enter)
+
+                except OperationStatus.InvalidOperationError as e:
+                    # if the room number is out of range, invalid room number
+                    # 如果房间号超出范围，非法房间号
+                    error_msg: str = OperationStatus.OperationStatus.unrecognized_message
+                    # STEP1.1.1.0
+                    self.client_socket.send(error_msg.encode())
+                except OperationStatus.RoomFullError as e:
+                    # if the room is full
+                    # 如果房间已满
+                    error_msg: str = OperationStatus.OperationStatus.room_full
+                    # STEP1.1.1.0
+                    self.client_socket.send(error_msg.encode())
+                except Exception as e:
+                    error_msg: str = repr(e)
+                    # STEP1.1.1.0
+                    self.client_socket.send(error_msg.encode())
+                else:
+                    # if nothing wrong, send msg to the Client that successfully enter the room
+                    # break the loop, exit the game hall
+                    # 如果没有问题，发送消息给客户端，成功进入房间，退出游戏大厅循环
+                    # send the result status code to the client
+                    # 将结果状态码发送给客户端
+                    msg: str = OperationStatus.OperationStatus.wait
+                    # STEP1.1.1.0
+                    self.client_socket.send(msg.encode())
+                    # although here is a break, the "finally" block will still be executed
+                    break
+
+                finally:
+                    # ensure the client received the message, the msg is "Client Received"
+                    # 确保客户端收到消息，消息是"Client Received"
+                    # STEP1.1.1.1
+                    self.client_socket.recv(1024).decode()
+
 
         # ——————————————————————————Game Hall—————————————————————————— #
 
@@ -219,8 +264,7 @@ class GameServerThreadEachPlayer(threading.Thread):
 
         '''
         After the user has input its password,
-        the client sends the user name and password to the server, with a message in the following format
-        /login user_name password 
++         /login user_name password 
         '''
         # STEP1.0.2.0
         #  用户输入密码后，服务端回显用户名和密码至客户端，格式如下
@@ -252,6 +296,9 @@ class GameServerThreadEachPlayer(threading.Thread):
             self.player: Player.Player = Player.Player(user_name=username,
                                                        password=password,
                                                        user_status=2)
+            # add the player to the game hall
+            # 将玩家添加到游戏大厅
+            self.game_hall.add_player(self.player)
 
             return True
         else:

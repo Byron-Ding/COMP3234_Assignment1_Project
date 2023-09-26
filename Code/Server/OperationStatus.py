@@ -3,7 +3,6 @@ import dataclasses
 
 @dataclasses.dataclass(init=False, frozen=True)
 class OperationStatus:
-
     authentication_successful: str = "1001 Authentication successful"
     authentication_failed: str = "1002 Authentication failed"
 
@@ -24,3 +23,17 @@ class OperationStatus:
         pass
 
 
+class UnrecognizedMessageError(Exception):
+    pass
+
+
+class RoomFullError(Exception):
+    pass
+
+
+class InvalidOperationError(Exception):
+    pass
+
+
+class PlayerNotFoundError(Exception):
+    pass
