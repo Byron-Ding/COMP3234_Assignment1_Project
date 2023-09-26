@@ -12,6 +12,8 @@ class GameHall:
         # create the game room list
         # 创建游戏房间列表
         self.game_room_list: [GameRoom.GameRoom] = []
+        # the room starts the game
+        self.active_room_list: [GameRoom.GameRoom] = []
 
         # Player List
         # 玩家列表

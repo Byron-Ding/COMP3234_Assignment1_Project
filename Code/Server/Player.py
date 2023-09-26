@@ -1,5 +1,5 @@
 import dataclasses
-
+import socket
 
 
 @dataclasses.dataclass(frozen=True)
@@ -8,6 +8,8 @@ class Player:
     password: str
 
     user_status: int
+
+    user_socket: socket.socket
 
     room_id: int = -1
 

@@ -3,6 +3,7 @@ import threading
 import socket
 import sys
 import re
+import random
 
 import OperationStatus
 import GameHall
@@ -76,6 +77,35 @@ class GameServer:
             game_server_thread.start()
 
 
+class Game(threading.Thread):
+    """
+    For all rooms, when a room is full, start a game as a new thread, thread finishes when the game is over
+    """
+    def __init__(self, game_room: GameHall.GameRoom):
+        super().__init__()
+        self.game_room: GameHall.GameRoom = game_room
+        self.player_list: list[Player.Player] = game_room.player_list
+
+    def start(self) -> None:
+        super().start()
+
+    def run(self) -> None:
+        """
+        Start the thread, Start the game
+        The whole game process is defined here
+        After the last player enters the Room, pass the Game room object to here, and start the game.
+        The Game Room object has 2 players socket, and the game room id, which could be used to send the message
+        and auto exit 2 players from the game room after the game is finished
+        :return: None
+        """
+
+
+    # 生成随机的布尔值
+    # generate random bool
+    def generate_random_bool(self) -> bool:
+        return random.choice([True, False])
+
+
 class GameServerThreadEachPlayer(threading.Thread):
     """
     The Game Server Thread for handling client connections,
@@ -133,95 +163,7 @@ class GameServerThreadEachPlayer(threading.Thread):
         # ——————————————————————————User Login—————————————————————————— #
 
         # ——————————————————————————Game Hall—————————————————————————— #
-        # wait for the user to choose the operation
-        # 等待用户选择操作
-        while True:
-            # STEP1.1.0.0
-            # sent the error_msg to the client, say you are ready to send the command
-            # 将消息发送给客户端，表示你可以发送命令了
-            self.client_socket.send("Server Ready".encode())
-
-            # get the command
-            # 获取命令
-            # STEP1.1.0.1
-            user_command: str = self.client_socket.recv(1024).decode()
-            # del the head, the format is hall_command:command
-            # 删除头，格式 hall_command:command
-            user_command = user_command[13:]
-
-            # /list to list all the rooms
-            # output return format is
-            # 3001 number_of_all_rooms number_of_players_in_room_1 ... number_of_players_in_room_n
-            # if the command is valid
-            if user_command == "/list":
-                # get the room status
-                # 获取房间状态
-                room_status: str = self.game_server.game_hall.list_room_and_status()
-
-                # send the command to the server
-                # 将命令发送给服务器
-                # STEP1.1.1.0
-                self.client_socket.send(room_status.encode())
-                # ensure the client received the message, the msg is "Client Received"
-                # 确保客户端收到消息，消息是"Client Received"
-                # STEP1.1.1.1
-                self.client_socket.recv(1024).decode()
-
-            elif matched_command := re.fullmatch(r"/enter (?P<target_room_number>\d+)", user_command):
-                # command should be in /enter <target_room_number>
-                # get the target room number
-                room_number_enter: int = int(matched_command.group("target_room_number"))
-
-                # enter the room
-                # 进入房间
-                try:
-                    # if the room is full,
-                    status = self.game_server.game_hall.enter_room(self.player, room_number_enter)
-
-                except OperationStatus.InvalidOperationError as e:
-                    # if the room number is out of range, invalid room number
-                    # 如果房间号超出范围，非法房间号
-                    error_msg: str = OperationStatus.OperationStatus.unrecognized_message
-                    # STEP1.1.1.0
-                    self.client_socket.send(error_msg.encode())
-                except OperationStatus.RoomFullError as e:
-                    # if the room is full
-                    # 如果房间已满
-                    error_msg: str = OperationStatus.OperationStatus.room_full
-                    # STEP1.1.1.0
-                    self.client_socket.send(error_msg.encode())
-                except Exception as e:
-                    error_msg: str = repr(e)
-                    # STEP1.1.1.0
-                    self.client_socket.send(error_msg.encode())
-                else:
-                    # if nothing wrong, send msg to the Client that successfully enter the room
-                    # break the loop, exit the game hall
-                    # 如果没有问题，发送消息给客户端，成功进入房间，退出游戏大厅循环
-                    # send the result status code to the client
-                    # 将结果状态码发送给客户端
-                    msg: str = OperationStatus.OperationStatus.wait
-                    # STEP1.1.1.0
-                    self.client_socket.send(msg.encode())
-                    # although here is a break, the "finally" block will still be executed
-                    break
-
-                finally:
-                    # ensure the client received the message, the msg is "Client Received"
-                    # 确保客户端收到消息，消息是"Client Received"
-                    # STEP1.1.1.1
-                    self.client_socket.recv(1024).decode()
-
-            else:
-                # unrecognized command
-                # 未识别的命令
-                error_msg: str = OperationStatus.OperationStatus.unrecognized_message
-                # STEP1.1.1.0
-                self.client_socket.send(error_msg.encode())
-                # ensure the client received the message, the msg is "Client Received"
-                # 确保客户端收到消息，消息是"Client Received"
-                # STEP1.1.1.1
-                self.client_socket.recv(1024).decode()
+        self.game_hall()
         # ——————————————————————————Game Hall—————————————————————————— #
 
 
@@ -318,7 +260,8 @@ class GameServerThreadEachPlayer(threading.Thread):
             '''
             self.player: Player.Player = Player.Player(user_name=username,
                                                        password=password,
-                                                       user_status=2)
+                                                       user_status=2,
+                                                       user_socket=self.client_socket)
             # add the player to the game hall
             # 将玩家添加到游戏大厅
             # get the shared resource, the game hall
@@ -363,7 +306,96 @@ class GameServerThreadEachPlayer(threading.Thread):
             # 接收客户端的消息，检查消息是否到达
             self.client_socket.recv(1024).decode()
 
+    def game_hall(self):
+        # wait for the user to choose the operation
+        # 等待用户选择操作
+        while True:
+            # STEP1.1.0.0
+            # sent the error_msg to the client, say you are ready to send the command
+            # 将消息发送给客户端，表示你可以发送命令了
+            self.client_socket.send("Server Ready".encode())
 
+            # get the command
+            # 获取命令
+            # STEP1.1.0.1
+            user_command: str = self.client_socket.recv(1024).decode()
+            # del the head, the format is hall_command:command
+            # 删除头，格式 hall_command:command
+            user_command = user_command[13:]
+
+            # /list to list all the rooms
+            # output return format is
+            # 3001 number_of_all_rooms number_of_players_in_room_1 ... number_of_players_in_room_n
+            # if the command is valid
+            if user_command == "/list":
+                # get the room status
+                # 获取房间状态
+                room_status: str = self.game_server.game_hall.list_room_and_status()
+
+                # send the command to the server
+                # 将命令发送给服务器
+                # STEP1.1.1.0
+                self.client_socket.send(room_status.encode())
+                # ensure the client received the message, the msg is "Client Received"
+                # 确保客户端收到消息，消息是"Client Received"
+                # STEP1.1.1.1
+                self.client_socket.recv(1024).decode()
+
+            elif matched_command := re.fullmatch(r"/enter (?P<target_room_number>\d+)", user_command):
+                # command should be in /enter <target_room_number>
+                # get the target room number
+                room_number_enter: int = int(matched_command.group("target_room_number"))
+
+                # enter the room
+                # 进入房间
+                try:
+                    # if the room is full,
+                    status = self.game_server.game_hall.enter_room(self.player, room_number_enter)
+
+                except OperationStatus.InvalidOperationError as e:
+                    # if the room number is out of range, invalid room number
+                    # 如果房间号超出范围，非法房间号
+                    error_msg: str = OperationStatus.OperationStatus.unrecognized_message
+                    # STEP1.1.1.0
+                    self.client_socket.send(error_msg.encode())
+                except OperationStatus.RoomFullError as e:
+                    # if the room is full
+                    # 如果房间已满
+                    error_msg: str = OperationStatus.OperationStatus.room_full
+                    # STEP1.1.1.0
+                    self.client_socket.send(error_msg.encode())
+                except Exception as e:
+                    error_msg: str = repr(e)
+                    # STEP1.1.1.0
+                    self.client_socket.send(error_msg.encode())
+                else:
+                    # if nothing wrong, send msg to the Client that successfully enter the room
+                    # break the loop, exit the game hall
+                    # 如果没有问题，发送消息给客户端，成功进入房间，退出游戏大厅循环
+                    # send the result status code to the client
+                    # 将结果状态码发送给客户端
+                    msg: str = OperationStatus.OperationStatus.wait
+                    # STEP1.1.1.0
+                    self.client_socket.send(msg.encode())
+                    # although here is a break, the "finally" block will still be executed
+                    break
+
+                finally:
+                    # ensure the client received the message, the msg is "Client Received"
+                    # 确保客户端收到消息，消息是"Client Received"
+                    # STEP1.1.1.1
+                    self.client_socket.recv(1024).decode()
+
+            else:
+                # unrecognized command
+                # 未识别的命令
+                error_msg: str = OperationStatus.OperationStatus.unrecognized_message
+                # STEP1.1.1.0
+                self.client_socket.send(error_msg.encode())
+                # ensure the client received the message, the msg is "Client Received"
+                # 确保客户端收到消息，消息是"Client Received"
+                # STEP1.1.1.1
+                self.client_socket.recv(1024).decode()
 
 if __name__ == '__main__':
     '''
