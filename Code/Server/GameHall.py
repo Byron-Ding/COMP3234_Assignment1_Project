@@ -47,7 +47,8 @@ class GameHall:
         :return:
         """
         # room id should be in the room list, not out of range
-        if room_id > self.game_room_number:
+        # notice that the room id is start from 0, so the max room id is game_room_number - 1
+        if room_id >= self.game_room_number:
             raise OperationStatus.InvalidOperationError("The room id is out of range")
 
         # player should in the player list

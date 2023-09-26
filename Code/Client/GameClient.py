@@ -142,6 +142,13 @@ class GameClient:
 
             # STEP1.1.0.1
             command = input()
+            # prevent for empty command
+            # 防止空命令
+            # add head "hall_command:" to the command
+            # 添加头"hall_command:"到命令
+            head: str = "hall_command:"
+            command = head + command
+
             # send the command to the server
             # 发送命令到服务器
             self.server_socket.send(command.encode())
@@ -174,5 +181,5 @@ if __name__ == '__main__':
 
     game_client: GameClient = GameClient(server_host, server_port)
     '''
-    game_client: GameClient = GameClient("localhost", 3)
+    game_client: GameClient = GameClient("localhost", 15210)
 

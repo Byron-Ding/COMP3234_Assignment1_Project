@@ -32,6 +32,13 @@ class GameServer:
         self.user_info_file: UserInfoFile = UserInfoFile.UserInfoFile(self.account_password_file)
 
 
+        # create Game Hall,
+        # do not create in the thread,
+        # or there will be multiple game halls,
+        # the user should be in the same game hall
+        # 创建游戏大厅，不要在线程里创建，不然会出现多个游戏大厅，用户应该在同一个游戏大厅
+        self.game_hall: GameHall.GameHall = GameHall.GameHall()
+
     # start the server, for handling connections
     # 主线程用于接受连接
     def start(self):
@@ -50,7 +57,7 @@ class GameServer:
         # 然后，才能监听链接，要不然会不知道主机在那里
         # listen() has a parameter backlog, the maximum number of connections
         # listen() 有一个参数backlog，最大连接数
-        server_socket.listen()
+        server_socket.listen(100)
 
         # accept connections
         # Each TCP connect = a thread
@@ -96,13 +103,11 @@ class GameServerThreadEachPlayer(threading.Thread):
         # User Client Address
         self.client_address: tuple = client_accept[1]
 
+        # Game Server, For all shared resources, including the game hall
+        self.game_server: GameServer = game_server
+
         # UserInfoFile
         self.user_info_file: UserInfoFile = game_server.user_info_file
-
-
-        # create Game Hall
-        # 创建游戏大厅
-        self.game_hall: GameHall.GameHall = GameHall.GameHall()
 
 
     def start(self) -> None:
@@ -111,6 +116,15 @@ class GameServerThreadEachPlayer(threading.Thread):
         :return: None
         """
         super().start()
+
+    def run(self) -> None:
+        """
+        Start the thread
+        :return: None
+        """
+        # super().start()
+        # start only execute 1 time each thread, and after it finish executing, a new thread will be created
+        # so do not use start
         # ——————————————————————————User Login—————————————————————————— #
         # User Login
         # until login successfully or press Ctrl+C
@@ -131,6 +145,9 @@ class GameServerThreadEachPlayer(threading.Thread):
             # 获取命令
             # STEP1.1.0.1
             user_command: str = self.client_socket.recv(1024).decode()
+            # del the head, the format is hall_command:command
+            # 删除头，格式 hall_command:command
+            user_command = user_command[13:]
 
             # /list to list all the rooms
             # output return format is
@@ -139,7 +156,7 @@ class GameServerThreadEachPlayer(threading.Thread):
             if user_command == "/list":
                 # get the room status
                 # 获取房间状态
-                room_status: str = self.game_hall.list_room_and_status()
+                room_status: str = self.game_server.game_hall.list_room_and_status()
 
                 # send the command to the server
                 # 将命令发送给服务器
@@ -153,13 +170,13 @@ class GameServerThreadEachPlayer(threading.Thread):
             elif matched_command := re.fullmatch(r"/enter (?P<target_room_number>\d+)", user_command):
                 # command should be in /enter <target_room_number>
                 # get the target room number
-                room_number_enter: int = matched_command.group("target_room_number")
+                room_number_enter: int = int(matched_command.group("target_room_number"))
 
                 # enter the room
                 # 进入房间
                 try:
                     # if the room is full,
-                    status = self.game_hall.enter_room(self.player, room_number_enter)
+                    status = self.game_server.game_hall.enter_room(self.player, room_number_enter)
 
                 except OperationStatus.InvalidOperationError as e:
                     # if the room number is out of range, invalid room number
@@ -195,12 +212,18 @@ class GameServerThreadEachPlayer(threading.Thread):
                     # STEP1.1.1.1
                     self.client_socket.recv(1024).decode()
 
-
+            else:
+                # unrecognized command
+                # 未识别的命令
+                error_msg: str = OperationStatus.OperationStatus.unrecognized_message
+                # STEP1.1.1.0
+                self.client_socket.send(error_msg.encode())
+                # ensure the client received the message, the msg is "Client Received"
+                # 确保客户端收到消息，消息是"Client Received"
+                # STEP1.1.1.1
+                self.client_socket.recv(1024).decode()
         # ——————————————————————————Game Hall—————————————————————————— #
 
-
-    def run(self):
-        ...
 
     def login(self) -> None:
         login_result: bool = False
@@ -298,7 +321,9 @@ class GameServerThreadEachPlayer(threading.Thread):
                                                        user_status=2)
             # add the player to the game hall
             # 将玩家添加到游戏大厅
-            self.game_hall.add_player(self.player)
+            # get the shared resource, the game hall
+            # 向上调用，获取共享资源，游戏大厅
+            self.game_server.game_hall.add_player(self.player)
 
             return True
         else:
@@ -364,7 +389,7 @@ if __name__ == '__main__':
 
 
     # create the GameServer
-    game_server: GameServer = GameServer(3, "UserInfo.txt")
+    game_server: GameServer = GameServer(15210, "UserInfo.txt")
 
     # start the server
     # 开始服务器
