@@ -23,7 +23,9 @@ class Player:
 
     user_thread: GameServer.GameServerThreadEachPlayer
 
-    room_id: int = -1
+    game_room: GameServer.GameRoom = None
+
+
     '''
     player's status/玩家状态
     0. Reserved Status (Not Used)

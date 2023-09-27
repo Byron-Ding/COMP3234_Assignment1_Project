@@ -48,6 +48,7 @@ class GameRoom:
             raise OperationStatus.RoomFullError("The room is full")
         else:
             self.player_list.append(player)
+            player.game_room = self
             return True
 
     def remove_player(self, player: Player.Player) -> bool:
@@ -186,6 +187,7 @@ class GameRoom:
         def start_game(self):
             # try:
             # STEP 1.2.0.0
+            self.game_server.print_message("Sending game started message......")
             self.send_message_to_all(OperationStatus.OperationStatus.game_started)
 
             # generate a random boolean
@@ -205,6 +207,7 @@ class GameRoom:
 
             self.game_server.print_message(player_guess_str)
 
+            # STEP 1.2.1.0 RESULT
             # if equal, the result is tie
             # 如果相等，结果是平局
             if player_guess_str[0] == player_guess_str[1]:
@@ -226,9 +229,9 @@ class GameRoom:
                 self.send_message_to_player_safe(winner, OperationStatus.OperationStatus.win_the_game)
                 self.send_message_to_player_safe(loser, OperationStatus.OperationStatus.lose_the_game)
 
-            # STEP1.2.2.0
-            received_message: list[str] = []
-            self.receive_message_from_all(received_message)
+            # STEP 1.2.2.0
+            receive_result: list[str] = []
+            self.receive_message_from_all(receive_result)
 
             # finally, clear the room
             # 最后，清空房间

@@ -166,14 +166,6 @@ class GameServerThreadEachPlayer(threading.Thread):
             self.game_server.print_message("Unknown Error: " + repr(e) + " user_name: " + self.player.user_name)
 
 
-    def pause_thread_to_game(self) -> None:
-        """
-        Pause the thread, wait for the game to finish
-        :return: None
-        """
-        print(self.player, "thread blocked")
-        self.thread_lock.clear()
-
     def resume_thread_to_game(self) -> None:
         """
         Resume the thread, the game is finished, back to the game hall
@@ -186,8 +178,10 @@ class GameServerThreadEachPlayer(threading.Thread):
         Stop the thread
         :return: None
         """
-        while self.thread_lock.is_set():
-            self.thread_lock.clear()
+        print(self.player.user_name, "Thread Paused")
+        self.thread_lock.clear()
+        self.thread_lock.wait()
+        print(self.player.user_name, "Thread Recovered")
 
     def send_message(self, message: str):
         try:
@@ -382,7 +376,7 @@ class GameServerThreadEachPlayer(threading.Thread):
                 try:
                     # if the room is full, raise the exception
                     # if the room is full after join, a game will start, game room obj will be returned
-                    game_room = self.game_server.game_hall.enter_room(self.player, room_number_enter)
+                    whether_successful: bool = self.game_server.game_hall.enter_room(self.player, room_number_enter)
 
                 except OperationStatus.InvalidOperationError as e:
                     # if the room number is out of range, invalid room number
@@ -433,10 +427,13 @@ class GameServerThreadEachPlayer(threading.Thread):
 
                     # the client tell server start to wait
                     # 客户端告诉服务器开始等待
+                    # STEP 1.1.1.1
+                    start_wait_msg: str = self.client_socket.recv(1024).decode()
+                    print(self.player.user_name, start_wait_msg)
 
                     # start the game
                     # 开始游戏，有可能判定失败, wait
-                    self.start_game(game_room)
+                    self.start_game()
 
             elif user_command == "/exit":
                 # if the user want to exit the game hall
@@ -463,24 +460,22 @@ class GameServerThreadEachPlayer(threading.Thread):
                 self.client_socket.recv(1024).decode()
 
 
-    def start_game(self, game_room: GameRoom):
-        # If enter, then the player is in the game room
-        # held on
-        # server Ready for the game
-        # STEP 1.1.1.0
-        self.send_message("Server Ready")
-        # STEP 1.1.1.1
-        # 接受之后挂起，等待其他玩家进入房间，这个时候client等待接收消息
-        start_wait = self.client_socket.recv(1024).decode()
-        print(start_wait)
+    def start_game(self):
+        game_room: GameRoom.GameRoom = self.player.game_room
 
-        print("GameRoom", game_room.room_id, game_room.check_full())
+        # None raise the exception
+        if game_room is None:
+            raise OperationStatus.InvalidOperationError("The player is not in any room")
+
+        print("Current GameRoom:", game_room.room_id, game_room.check_full())
 
         # After the last player enter the room, the game will start
         if game_room.check_full():
             print("Game Created")
-            game_thread = game_room.Game(self.game_server, game_room)
+            game_thread: GameRoom.GameRoom.Game = game_room.Game(self.game_server, game_room)
             print("Game Started")
+            # Send msg that the game start to all players
+            # STEP 1.2.0.0 [INSIDE FUNCTION BELLOW]
             game_thread.start()
 
         print("try to pause the thread")

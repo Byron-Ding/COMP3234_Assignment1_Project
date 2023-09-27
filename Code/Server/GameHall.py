@@ -41,7 +41,7 @@ class GameHall:
         else:
             return False
 
-    def enter_room(self, player: Player.Player, room_id: int) -> GameRoom.GameRoom:
+    def enter_room(self, player: Player.Player, room_id: int) -> True:
         """
         Enter the room
         if success, return True
@@ -62,7 +62,7 @@ class GameHall:
             # get into the room
             # if success it will return True
             self.game_room_list[room_id].add_player(player)
-            return self.game_room_list[room_id]
+            return True
         else:
             raise OperationStatus.PlayerNotFoundError("The player is not in the player list")
 

@@ -152,7 +152,7 @@ class GameClient:
 
             # STEP1.1.1.0
             # get the server's response, exception or success
-            # 获得服务器返回的消息，异常还是成功
+            # 获得服务器返回的消息，异常还是成功, for any commands
             received_message: str = self.server_socket.recv(1024).decode()
             print(received_message)
 
@@ -161,10 +161,14 @@ class GameClient:
             # 如果成功
             if received_message == OperationStatus.OperationStatus.wait:
 
-                # STEP1.1.1.1
+                # STEP 1.1.1.1
                 # send msg to the server, I received the message, start to wait
                 self.server_socket.send("Client start wait".encode())
 
+                # STEP 1.1.2.0
+                # wait for receiving the message from the server
+                # Server received
+                # 等待服务器通知，游戏开始
                 self.game_loop()
                 # after the game, back to the game hall
 
@@ -186,6 +190,7 @@ class GameClient:
 
 
     def game_loop(self):
+
         # STEP 1.2.0.0
         # wait for receiving the message from the server
         # that the game is started / or the game is finished because someone is out of connection
@@ -210,12 +215,12 @@ class GameClient:
                 # 首字母大写
                 guess = guess.capitalize()
 
-                # STEP 1.2.1.0
+                # STEP 1.2.0.1
                 # send to the server
                 # 发送到服务器
                 self.server_socket.send(guess.encode())
 
-                # STEP 1.2.1.1
+                # STEP 1.2.1.0
                 # receive the message from the server
                 # 接收服务器的消息
                 received_message: str = self.server_socket.recv(1024).decode()
@@ -223,7 +228,7 @@ class GameClient:
                 print(received_message)
 
                 # STEP1.2.2.0
-                # tell the server, I received the message
+                # tell the server, I received the RESULT
                 self.server_socket.send("Client Received".encode())
 
                 break
