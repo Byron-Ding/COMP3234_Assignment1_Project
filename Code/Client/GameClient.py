@@ -43,13 +43,10 @@ class GameClient:
         # 开始客户端
         self.start()
 
-        # the user will do the option and entering commands in the game hall
-        self.game_hall_loop()
 
     def start(self):
         self.login()
         self.game_hall_loop()
-
 
     def login(self) -> None:
         """
@@ -159,14 +156,80 @@ class GameClient:
             received_message: str = self.server_socket.recv(1024).decode()
             print(received_message)
 
-            # STEP1.1.1.1
-            # tell the server, I received the message
-            self.server_socket.send("Client Received".encode())
 
             # if success, break the loop
             # 如果成功
             if received_message == OperationStatus.OperationStatus.wait:
+
+                # STEP1.1.1.1
+                # send msg to the server, I received the message, start to wait
+                self.server_socket.send("Client start wait".encode())
+
+                self.game_loop()
+                # after the game, back to the game hall
+
+            # if exit, exit the game
+            # 如果退出，退出游戏
+            elif received_message == OperationStatus.OperationStatus.bye_bye:
+                # STEP1.1.1.1
+                # tell the server, I received the message
+                self.server_socket.send("Client Received".encode())
+
+                self.server_socket.close()
+                sys.exit(0)
+
+            else:
+                # STEP1.1.1.1
+                # for any other message
+                # tell the server, I received the message
+                self.server_socket.send("Client Received".encode())
+
+
+    def game_loop(self):
+        # STEP 1.2.0.0
+        # wait for receiving the message from the server
+        # that the game is started / or the game is finished because someone is out of connection
+        # 等待接收服务器的消息，游戏开始/或者游戏结束因为有人断开连接
+        # 3012 OR Win
+        received_message: str = self.server_socket.recv(1024).decode()
+        print(received_message)
+
+        while True:
+            # STEP 1.2.0.1
+            # input command of guess true or false
+            # 输入猜测的命令
+            command: str = input()
+            # only true/false will send to the server
+            # 只有true/false会发送到服务器，true/false不区分大小写
+            if matched_user_command := re.fullmatch(r'/guess (?P<guess>[Tt][Rr][Uu][Ee]|[Ff][Aa][Ll][Ss][Ee])', command):
+                # get the guess
+                # 获得猜测
+                guess: str = matched_user_command.group("guess")
+
+                # capitalize the first letter
+                # 首字母大写
+                guess = guess.capitalize()
+
+                # STEP 1.2.1.0
+                # send to the server
+                # 发送到服务器
+                self.server_socket.send(guess.encode())
+
+                # STEP 1.2.1.1
+                # receive the message from the server
+                # 接收服务器的消息
+                received_message: str = self.server_socket.recv(1024).decode()
+                # the received message should be the result of the game
+                print(received_message)
+
+                # STEP1.2.2.0
+                # tell the server, I received the message
+                self.server_socket.send("Client Received".encode())
+
                 break
+
+            else:
+                print(OperationStatus.OperationStatus.unrecognized_message)
 
 
 

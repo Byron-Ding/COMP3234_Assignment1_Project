@@ -1,12 +1,15 @@
 import GameRoom
 import Player
 import OperationStatus
+import GameServer
 
 
 class GameHall:
     DEFAULT_GAME_ROOM_NUMBER = 10
 
-    def __init__(self, game_room_number: int = DEFAULT_GAME_ROOM_NUMBER):
+    def __init__(self,
+                 game_server: GameServer.GameServer,
+                 game_room_number: int = DEFAULT_GAME_ROOM_NUMBER) -> None:
         self.game_room_number: int = game_room_number
 
         # create the game room list
@@ -20,7 +23,7 @@ class GameHall:
         self.player_list: [Player.Player] = []
 
         for i in range(self.game_room_number):
-            self.game_room_list.append(GameRoom.GameRoom(i))
+            self.game_room_list.append(GameRoom.GameRoom(game_server, i))
 
     def add_player(self, player: Player.Player) -> bool:
 
@@ -38,7 +41,7 @@ class GameHall:
         else:
             return False
 
-    def enter_room(self, player: Player.Player, room_id: int) -> True:
+    def enter_room(self, player: Player.Player, room_id: int) -> GameRoom.GameRoom:
         """
         Enter the room
         if success, return True
@@ -58,7 +61,8 @@ class GameHall:
             # find the room
             # get into the room
             # if success it will return True
-            return self.game_room_list[room_id].add_player(player)
+            self.game_room_list[room_id].add_player(player)
+            return self.game_room_list[room_id]
         else:
             raise OperationStatus.PlayerNotFoundError("The player is not in the player list")
 

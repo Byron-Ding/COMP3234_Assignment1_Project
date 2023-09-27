@@ -8,8 +8,7 @@ import random
 import OperationStatus
 import GameHall
 import Player
-
-
+import GameRoom
 
 # Default Encoding is UTF-8
 
@@ -32,13 +31,14 @@ class GameServer:
         # create the UserInfoFile object
         self.user_info_file: UserInfoFile = UserInfoFile.UserInfoFile(self.account_password_file)
 
-
         # create Game Hall,
         # do not create in the thread,
         # or there will be multiple game halls,
         # the user should be in the same game hall
         # 创建游戏大厅，不要在线程里创建，不然会出现多个游戏大厅，用户应该在同一个游戏大厅
-        self.game_hall: GameHall.GameHall = GameHall.GameHall()
+        self.game_hall: GameHall.GameHall = GameHall.GameHall(self)
+
+        # record all threads of the game server, one thread means one client
 
     # start the server, for handling connections
     # 主线程用于接受连接
@@ -76,34 +76,18 @@ class GameServer:
             # 开始线程
             game_server_thread.start()
 
-
-class Game(threading.Thread):
-    """
-    For all rooms, when a room is full, start a game as a new thread, thread finishes when the game is over
-    """
-    def __init__(self, game_room: GameHall.GameRoom):
-        super().__init__()
-        self.game_room: GameHall.GameRoom = game_room
-        self.player_list: list[Player.Player] = game_room.player_list
-
-    def start(self) -> None:
-        super().start()
-
-    def run(self) -> None:
+    @staticmethod
+    def print_message(*args):
         """
-        Start the thread, Start the game
-        The whole game process is defined here
-        After the last player enters the Room, pass the Game room object to here, and start the game.
-        The Game Room object has 2 players socket, and the game room id, which could be used to send the message
-        and auto exit 2 players from the game room after the game is finished
+        Print the message
+        :param message: the message
         :return: None
         """
+        print(args)
 
-
-    # 生成随机的布尔值
-    # generate random bool
-    def generate_random_bool(self) -> bool:
-        return random.choice([True, False])
+    @staticmethod
+    def player_connection_error(player: Player, exception: Exception):
+        print("Player Connection Error", player.user_name, exception)
 
 
 class GameServerThreadEachPlayer(threading.Thread):
@@ -139,6 +123,11 @@ class GameServerThreadEachPlayer(threading.Thread):
         # UserInfoFile
         self.user_info_file: UserInfoFile = game_server.user_info_file
 
+        # Thread pause flag
+        self.thread_lock: threading.Event = threading.Event()
+        # Thread pause flag is False, the thread is running
+        # Thread pause flag is True, the thread is paused
+        self.thread_lock.set()
 
     def start(self) -> None:
         """
@@ -162,10 +151,50 @@ class GameServerThreadEachPlayer(threading.Thread):
         self.login()
         # ——————————————————————————User Login—————————————————————————— #
 
-        # ——————————————————————————Game Hall—————————————————————————— #
-        self.game_hall()
-        # ——————————————————————————Game Hall—————————————————————————— #
+        try:
+            # ——————————————————————————Game Hall—————————————————————————— #
+            self.game_hall()
+            # ——————————————————————————Game Hall—————————————————————————— #
+        except ConnectionError as e:
+            self.game_server.print_message("Connection Error: " + repr(e) + " user_name: " + self.player.user_name)
 
+        except OperationStatus.PlayerNormalQuit as e:
+            self.game_server.print_message(
+                "Player Normal Quit: " + repr(e) + " user_name: " + self.player.user_name)
+
+        except Exception as e:
+            self.game_server.print_message("Unknown Error: " + repr(e) + " user_name: " + self.player.user_name)
+
+
+    def pause_thread_to_game(self) -> None:
+        """
+        Pause the thread, wait for the game to finish
+        :return: None
+        """
+        print(self.player, "thread blocked")
+        self.thread_lock.clear()
+
+    def resume_thread_to_game(self) -> None:
+        """
+        Resume the thread, the game is finished, back to the game hall
+        :return: None
+        """
+        self.thread_lock.set()
+
+    def stop_thread(self) -> None:
+        """
+        Stop the thread
+        :return: None
+        """
+        while self.thread_lock.is_set():
+            self.thread_lock.clear()
+
+    def send_message(self, message: str):
+        try:
+            # send the message 0
+            self.client_socket.send(message.encode())
+        except Exception as e:
+            print("Message Send Error", e)
 
     def login(self) -> None:
         login_result: bool = False
@@ -181,15 +210,15 @@ class GameServerThreadEachPlayer(threading.Thread):
                 if login_result:
                     break
 
-            except KeyboardInterrupt:
+            except KeyboardInterrupt as e:
                 # press Ctrl+C
                 # 按Ctrl+C
-                print("User Press Ctrl+C")
+                print("Login: User Press Ctrl+C", e)
                 break
             except Exception as e:
                 # other exceptions
                 # 其他异常
-                print(e)
+                print("Login: Unknown Error:", e)
                 break
 
     def login_process(self):
@@ -202,7 +231,7 @@ class GameServerThreadEachPlayer(threading.Thread):
         # ask for the username
         # 请求用户名
         # STEP1.0.0.0
-        self.client_socket.send("Please input your user name:".encode())
+        self.send_message("Please input your user name:")
         # wait for the username
         # 等待用户名
         # STEP1.0.0.1
@@ -216,7 +245,7 @@ class GameServerThreadEachPlayer(threading.Thread):
 
         # 请求密码
         # STEP1.0.1.0
-        self.client_socket.send("Please input your password:".encode())
+        self.send_message("Please input your password:")
         # wait for the password
         # STEP1.0.1.1
         # 等待密码
@@ -235,14 +264,13 @@ class GameServerThreadEachPlayer(threading.Thread):
         #  用户输入密码后，服务端回显用户名和密码至客户端，格式如下
         #  格式 /login user_name password
         #  Do Not Forget to Encode and Decode when Transferring Data
-        encoded_username_password: bytes = f"/login {username} {password}\n".encode()
-        self.client_socket.send(encoded_username_password)
+        encoded_username_password: str = f"/login {username} {password}\n"
+        self.send_message(encoded_username_password)
         # STEP1.0.2.1
         # wait for the result, whether the user accept the message
         # 等待结果，用户是否接受消息
         received_message: str = self.client_socket.recv(1024).decode()
         # here, the received_message should be "Received"
-
 
         # check the username and password
         # 检查用户名和密码
@@ -261,7 +289,9 @@ class GameServerThreadEachPlayer(threading.Thread):
             self.player: Player.Player = Player.Player(user_name=username,
                                                        password=password,
                                                        user_status=2,
-                                                       user_socket=self.client_socket)
+                                                       user_thread=self,
+                                                       user_socket=self.client_socket
+                                                       )
             # add the player to the game hall
             # 将玩家添加到游戏大厅
             # get the shared resource, the game hall
@@ -287,7 +317,7 @@ class GameServerThreadEachPlayer(threading.Thread):
             # 将状态码发送给客户端
             # STEP1.0.3.0
             msg: str = OperationStatus.OperationStatus.authentication_successful
-            self.client_socket.send(msg.encode())
+            self.send_message(msg)
             # STEP1.0.3.1
             # receive the message from the client, check the message is reached
             # 接收客户端的消息，检查消息是否到达
@@ -300,7 +330,7 @@ class GameServerThreadEachPlayer(threading.Thread):
             # 将状态码发送给客户端
             # STEP1.0.3.0
             msg: str = OperationStatus.OperationStatus.authentication_failed
-            self.client_socket.send(msg.encode())
+            self.send_message(msg)
             # STEP1.0.3.1
             # receive the message from the client, check the message is reached
             # 接收客户端的消息，检查消息是否到达
@@ -313,7 +343,7 @@ class GameServerThreadEachPlayer(threading.Thread):
             # STEP1.1.0.0
             # sent the error_msg to the client, say you are ready to send the command
             # 将消息发送给客户端，表示你可以发送命令了
-            self.client_socket.send("Server Ready".encode())
+            self.send_message("Server Ready")
 
             # get the command
             # 获取命令
@@ -335,11 +365,12 @@ class GameServerThreadEachPlayer(threading.Thread):
                 # send the command to the server
                 # 将命令发送给服务器
                 # STEP1.1.1.0
-                self.client_socket.send(room_status.encode())
+                self.send_message(room_status)
                 # ensure the client received the message, the msg is "Client Received"
                 # 确保客户端收到消息，消息是"Client Received"
                 # STEP1.1.1.1
                 self.client_socket.recv(1024).decode()
+
 
             elif matched_command := re.fullmatch(r"/enter (?P<target_room_number>\d+)", user_command):
                 # command should be in /enter <target_room_number>
@@ -349,25 +380,36 @@ class GameServerThreadEachPlayer(threading.Thread):
                 # enter the room
                 # 进入房间
                 try:
-                    # if the room is full,
-                    status = self.game_server.game_hall.enter_room(self.player, room_number_enter)
+                    # if the room is full, raise the exception
+                    # if the room is full after join, a game will start, game room obj will be returned
+                    game_room = self.game_server.game_hall.enter_room(self.player, room_number_enter)
 
                 except OperationStatus.InvalidOperationError as e:
                     # if the room number is out of range, invalid room number
                     # 如果房间号超出范围，非法房间号
                     error_msg: str = OperationStatus.OperationStatus.unrecognized_message
                     # STEP1.1.1.0
-                    self.client_socket.send(error_msg.encode())
+                    self.send_message(error_msg)
                 except OperationStatus.RoomFullError as e:
                     # if the room is full
                     # 如果房间已满
                     error_msg: str = OperationStatus.OperationStatus.room_full
                     # STEP1.1.1.0
-                    self.client_socket.send(error_msg.encode())
+                    self.send_message(error_msg)
+
+                    # ensure the client received the message, the msg is "Client Received"
+                    # 确保客户端收到消息，消息是"Client Received"
+                    # STEP1.1.1.1
+                    self.client_socket.recv(1024).decode()
                 except Exception as e:
                     error_msg: str = repr(e)
                     # STEP1.1.1.0
-                    self.client_socket.send(error_msg.encode())
+                    self.send_message(error_msg)
+
+                    # ensure the client received the message, the msg is "Client Received"
+                    # 确保客户端收到消息，消息是"Client Received"
+                    # STEP1.1.1.1
+                    self.client_socket.recv(1024).decode()
                 else:
                     # if nothing wrong, send msg to the Client that successfully enter the room
                     # break the loop, exit the game hall
@@ -376,26 +418,78 @@ class GameServerThreadEachPlayer(threading.Thread):
                     # 将结果状态码发送给客户端
                     msg: str = OperationStatus.OperationStatus.wait
                     # STEP1.1.1.0
-                    self.client_socket.send(msg.encode())
+                    self.send_message(msg)
+                    # change the user status to waiting in room
+                    '''
+                    player's status/玩家状态
+                    0. Reserved Status (Not Used)
+                    1. Out of House
+                    2. In the game hall
+                    3. Waiting in room
+                    4. Playing a game
+                    '''
+                    self.player.user_status = 3
                     # although here is a break, the "finally" block will still be executed
-                    break
 
-                finally:
-                    # ensure the client received the message, the msg is "Client Received"
-                    # 确保客户端收到消息，消息是"Client Received"
-                    # STEP1.1.1.1
-                    self.client_socket.recv(1024).decode()
+                    # the client tell server start to wait
+                    # 客户端告诉服务器开始等待
+
+                    # start the game
+                    # 开始游戏，有可能判定失败, wait
+                    self.start_game(game_room)
+
+            elif user_command == "/exit":
+                # if the user want to exit the game hall
+                # 如果用户想退出游戏大厅
+                # send the result status code to the client
+                # 将结果状态码发送给客户端
+                msg: str = OperationStatus.OperationStatus.bye_bye
+                # STEP1.1.1.0
+                self.send_message(msg)
+
+                # out of the game hall loop
+                # 退出游戏大厅循环
+                raise OperationStatus.PlayerNormalQuit("Player Normal Quit")
 
             else:
                 # unrecognized command
                 # 未识别的命令
                 error_msg: str = OperationStatus.OperationStatus.unrecognized_message
                 # STEP1.1.1.0
-                self.client_socket.send(error_msg.encode())
+                self.send_message(error_msg)
                 # ensure the client received the message, the msg is "Client Received"
                 # 确保客户端收到消息，消息是"Client Received"
                 # STEP1.1.1.1
                 self.client_socket.recv(1024).decode()
+
+
+    def start_game(self, game_room: GameRoom):
+        # If enter, then the player is in the game room
+        # held on
+        # server Ready for the game
+        # STEP 1.1.1.0
+        self.send_message("Server Ready")
+        # STEP 1.1.1.1
+        # 接受之后挂起，等待其他玩家进入房间，这个时候client等待接收消息
+        start_wait = self.client_socket.recv(1024).decode()
+        print(start_wait)
+
+        print("GameRoom", game_room.room_id, game_room.check_full())
+
+        # After the last player enter the room, the game will start
+        if game_room.check_full():
+            print("Game Created")
+            game_thread = game_room.Game(self.game_server, game_room)
+            print("Game Started")
+            game_thread.start()
+
+        print("try to pause the thread")
+        # pause the thread, wait for the game to finish
+        # 暂停线程，等待游戏结束
+        self.stop_thread()
+
+
+
 
 if __name__ == '__main__':
     '''
@@ -418,7 +512,6 @@ if __name__ == '__main__':
     # 开始服务器
     game_server.start()
     '''
-
 
     # create the GameServer
     game_server: GameServer = GameServer(15210, "UserInfo.txt")

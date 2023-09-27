@@ -37,3 +37,11 @@ class InvalidOperationError(Exception):
 
 class PlayerNotFoundError(Exception):
     pass
+
+
+class PlayerNormalQuit(Exception):
+    pass
+
+
+class PlayerStartGame(Exception):
+    pass
