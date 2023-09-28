@@ -221,13 +221,13 @@ class GameClient:
                 self.server_socket.send(guess.encode())
 
                 # STEP 1.2.1.0
-                # receive the message from the server
+                # receive the message from the server, RESULT
                 # 接收服务器的消息
                 received_message: str = self.server_socket.recv(1024).decode()
                 # the received message should be the result of the game
                 print(received_message)
 
-                # STEP1.2.2.0
+                # STEP1.2.2.0 (NEED FIX)
                 # tell the server, I received the RESULT
                 self.server_socket.send("Client Received".encode())
 
@@ -235,6 +235,10 @@ class GameClient:
 
             else:
                 print(OperationStatus.OperationStatus.unrecognized_message)
+
+        # back to game hall
+        # 回到游戏大厅
+        self.game_hall_loop()
 
 
 

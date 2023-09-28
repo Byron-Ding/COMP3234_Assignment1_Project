@@ -229,13 +229,11 @@ class GameRoom:
                 self.send_message_to_player_safe(winner, OperationStatus.OperationStatus.win_the_game)
                 self.send_message_to_player_safe(loser, OperationStatus.OperationStatus.lose_the_game)
 
-            # STEP 1.2.2.0
+            # STEP 1.2.2.0 (NEED FIX)
             receive_result: list[str] = []
             self.receive_message_from_all(receive_result)
+            print(receive_result)
 
-            # finally, clear the room
-            # 最后，清空房间
-            self.room.clear_room()
             # set all player's status to hall
             # 设置所有玩家的状态为大厅
             for player in self.player_list:
@@ -244,6 +242,13 @@ class GameRoom:
                 player.user_thread.resume_thread_to_game()
 
                 player.status = Player.Player.IN_THE_GAME_HALL
+
+            # 一定要先释放玩家线程锁，再清空房间，否则玩家列表为空，无法释放锁
+            # must release the player thread lock first, then clear the room
+            # otherwise the player list is empty, can not release the lock
+            # finally, clear the room
+            # 最后，清空房间
+            self.room.clear_room()
 
             # except Exception as e:
             #    self.game_server.print_message(e)
