@@ -2,6 +2,7 @@ import GameRoom
 import Player
 import OperationStatus
 import GameServer
+import socket
 
 
 class GameHall:
@@ -88,3 +89,25 @@ class GameHall:
 
         return output_str
 
+    # 对应心跳包
+    # 按照名字找到玩家，然后把心跳包的socket赋值给玩家的socket
+    def correspond_heart_beating_socket_to_player_socket(self,
+                                                         player_name: str,
+                                                         heart_beating_socket: socket.socket) -> bool:
+
+        player: Player.Player
+        for player in self.player_list:
+            if player.player_name == player_name:
+                player.player_heart_beat_socket_channel = heart_beating_socket
+                return True
+
+        return False
+
+    # 查看有没有对应的玩家
+    def get_player_by_username(self, user_name: str) -> Player.Player | None:
+        player: Player.Player
+        for player in self.player_list:
+            if player.player_name == user_name:
+                return player
+
+        return None

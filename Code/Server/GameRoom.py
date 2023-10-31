@@ -117,11 +117,11 @@ class GameRoom:
             whether_error: bool = False
             for player in self.player_list:
                 try:
-                    received_message: str = player.user_socket.recv(1024).decode()
+                    received_message: str = player.player_socket.recv(1024).decode()
                 except Exception as e:
                     whether_error: bool = True
                     self.game_server.print_message("Receive message Error:", player, e)
-                    continue
+                    break
                 else:
                     # add to the list
                     received_messages.append(received_message)
@@ -160,15 +160,15 @@ class GameRoom:
             try:
                 # send the message 0
                 # get the player's socket
-                player.user_socket.send(message.encode())
+                player.player_socket.send(message.encode())
             except ConnectionError as e:
-                self.game_server.print_message("Connection Error:", player.user_name, repr(e))
+                self.game_server.print_message("Connection Error:", player.player_name, repr(e))
 
                 self.room.remove_player(player)
                 return True
 
             except Exception as e:
-                self.game_server.print_message("Unknown Error:", player.user_name, repr(e))
+                self.game_server.print_message("Unknown Error:", player.player_name, repr(e))
 
                 self.room.remove_player(player)
                 return True
@@ -239,7 +239,7 @@ class GameRoom:
             for player in self.player_list:
                 # finish pause the thread of Hall
                 # 完成暂停大厅的线程
-                player.user_thread.resume_thread_to_game()
+                player.player_thread.resume_thread_to_game()
 
                 player.status = Player.Player.IN_THE_GAME_HALL
 

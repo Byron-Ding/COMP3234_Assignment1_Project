@@ -4,27 +4,7 @@ import threading
 import GameServer
 
 
-@dataclasses.dataclass()
 class Player:
-    user_name: str
-    password: str
-
-    '''
-    player's status/玩家状态
-    0. Reserved Status (Not Used)
-    1. Out of House
-    2. In the game hall
-    3. Waiting in room
-    4. Playing a game
-    '''
-    user_status: int
-
-    user_socket: socket.socket
-
-    user_thread: GameServer.GameServerThreadEachPlayer
-
-    game_room: GameServer.GameRoom = None
-
 
     '''
     player's status/玩家状态
@@ -40,12 +20,46 @@ class Player:
     WAITING_IN_ROOM: int = 3
     PLAYING_A_GAME: int = 4
 
+    def __init__(self,
+                 player_name: str,
+                 password: str,
+                 player_message_socket_channel: socket.socket,
+                 player_thread: GameServer.GameServerThreadEachPlayer,
+                 player_hear_beat_socket_channel: socket.socket = None,
+                 player_status: int = 0
+                 ):
+
+        self.player_name: str = player_name
+        self.password: str = password
+        self.player_socket: socket.socket = player_message_socket_channel
+        self.player_thread: GameServer.GameServerThreadEachPlayer = player_thread
+        self.player_status: int = player_status
+        self.player_heart_beat_socket_channel: socket.socket = player_hear_beat_socket_channel
+
+
+        self.game_room: GameServer.GameRoom = None
+
+
+
+        self.player_status: int
+        self.game_room: GameServer.GameRoom = None
+
+
+        '''
+        player's status/玩家状态
+        0. Reserved Status (Not Used)
+        1. Out of House
+        2. In the game hall
+        3. Waiting in room
+        4. Playing a game
+        '''
+
 
 if __name__ == '__main__':
     # test the class
     # 测试类
-    player: Player = Player("user_name", "password", 0)
+    player: Player = Player("player_name", "password", 0, )
     print(player)
-    print(player.user_name)
+    print(player.player_name)
     print(player.password)
-    print(player.user_status)
+    print(player.player_status)

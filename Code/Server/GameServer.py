@@ -12,6 +12,10 @@ import GameRoom
 
 # Default Encoding is UTF-8
 
+# Condition Variable for whether heart beat is established
+# 心跳是否建立的条件变量
+HEART_BEAT_CONDITION_VARIABLE: threading.Condition = threading.Condition()
+
 
 class GameServer:
 
@@ -68,6 +72,7 @@ class GameServer:
             # accept() returns a tuple of (server_socket, client_address)
             # accept() 返回一个元组（客户端套接字，客户端地址）
             client_accept: tuple = server_socket.accept()
+
             # create a thread to handle the connection, it does not affect the main thread
             # 分完线程不影响主线程，主线程继续循环接受连接，分线程处理连接
             game_server_thread: GameServerThreadEachPlayer = GameServerThreadEachPlayer(client_accept,
@@ -87,7 +92,7 @@ class GameServer:
 
     @staticmethod
     def player_connection_error(player: Player, exception: Exception):
-        print("Player Connection Error", player.user_name, exception)
+        print("Player Connection Error", player.player_name, exception)
 
 
 class GameServerThreadEachPlayer(threading.Thread):
@@ -144,27 +149,76 @@ class GameServerThreadEachPlayer(threading.Thread):
         # super().start()
         # start only execute 1 time each thread, and after it finish executing, a new thread will be created
         # so do not use start
-        # ——————————————————————————User Login—————————————————————————— #
-        # User Login
-        # until login successfully or press Ctrl+C
-        # 直到登录成功或按Ctrl+C
-        self.login()
-        # ——————————————————————————User Login—————————————————————————— #
+        # —————————————————————————— 区分信息 —————————————————————————— #
+        # STEP Head.0.0.0
+        # 接受头文件，区分是登录还是心跳包
+        # receive the header, to distinguish whether it is login or heart beat package
+        header: str = self.client_socket.recv(1024).decode()
+        print(header)
+        # STEP Head.0.0.1
+        # Send Recv
+        self.client_socket.send("Received".encode())
 
-        try:
-            # ——————————————————————————Game Hall—————————————————————————— #
-            self.game_hall()
-            # ——————————————————————————Game Hall—————————————————————————— #
-        except ConnectionError as e:
-            self.game_server.print_message("Connection Error: " + repr(e) + " user_name: " + self.player.user_name)
+        if header == "Header:login":
+            # if it is login
+            # 如果是登录
+            # ——————————————————————————User Login—————————————————————————— #
+            # User Login
+            # until login successfully or press Ctrl+C
+            # 直到登录成功或按Ctrl+C
+            self.login()
+            # ——————————————————————————User Login—————————————————————————— #
 
-        except OperationStatus.PlayerNormalQuit as e:
-            self.game_server.print_message(
-                "Player Normal Quit: " + repr(e) + " user_name: " + self.player.user_name)
+            try:
+                # ——————————————————————————Game Hall—————————————————————————— #
+                self.game_hall()
+                # ——————————————————————————Game Hall—————————————————————————— #
+            except ConnectionError as e:
+                self.game_server.print_message("Connection Error: " + repr(e) + " player_name: " + self.player.player_name)
 
-        except Exception as e:
-            self.game_server.print_message("Unknown Error: " + repr(e) + " user_name: " + self.player.user_name)
+            except OperationStatus.PlayerNormalQuit as e:
+                self.game_server.print_message(
+                    "Player Normal Quit: " + repr(e) + " player_name: " + self.player.player_name)
 
+            except Exception as e:
+                self.game_server.print_message("Unknown Error: " + repr(e) + " player_name: " + self.player.player_name)
+
+        elif header_matched := re.fullmatch(r"Header:heart beat:(?P<username>\w+):client", header):
+            # if it is heart beat package
+            # 如果是心跳包
+            # ——————————————————————————Heart Beat—————————————————————————— #
+            # Heart Beat
+            # STEP Head.0.0.1
+            # 接受心跳包，回显
+            # receive the heart beat package, and echo it
+            username: str = header_matched.group("username")
+            print(f"Heart Beat from", username, "start")
+            # 调用GameHall的方法，将心跳包的socket传入
+            # call the method of GameHall, pass the heart beat socket
+            print("Heart skt is:", self.client_socket is None)
+            print(self.game_server.game_hall.correspond_heart_beating_socket_to_player_socket(username,
+                                                                                              self.client_socket))
+            print(self.game_server.game_hall.get_player_by_username(username).player_name)
+            print(self.game_server.game_hall.get_player_by_username(username).player_heart_beat_socket_channel is None)
+            # 心跳包建立后，广播恢复线程，但是要先获取锁
+            # After the heart beat is established, broadcast to resume the thread, but need to get the lock first
+            # HEART_BEAT_CONDITION_VARIABLE.acquire(blocking=False)
+
+            print("Corresponding Heart Beat Socket to Player Socket Finished")
+
+            # 广播恢复线程
+            # broadcast to resume the thread
+            # HEART_BEAT_CONDITION_VARIABLE.notify_all()
+
+            # 设置超时时间为1秒
+            # set the timeout to 1 second
+            self.client_socket.settimeout(1)
+            while True:
+                self.client_socket.recv(1024)
+
+            # ——————————————————————————Heart Beat—————————————————————————— #
+
+        # —————————————————————————— 区分信息 —————————————————————————— #
 
     def resume_thread_to_game(self) -> None:
         """
@@ -178,10 +232,10 @@ class GameServerThreadEachPlayer(threading.Thread):
         Stop the thread
         :return: None
         """
-        print(self.player.user_name, "Thread Paused")
+        print(self.player.player_name, "Thread Paused")
         self.thread_lock.clear()
         self.thread_lock.wait()
-        print(self.player.user_name, "Thread Recovered")
+        print(self.player.player_name, "Thread Recovered")
 
     def send_message(self, message: str):
         try:
@@ -195,13 +249,32 @@ class GameServerThreadEachPlayer(threading.Thread):
         while login_result is not True:
             try:
                 # STEP1.0.0.0 - 1.0.2.1
+                # 这一步已经创建玩家实体，加入了大厅
                 login_result = self.login_process()
                 # STEP1.0.3.0 - 1.0.3.1
                 self.login_result_response(login_result)
 
+                # 阻塞线程，直到获取到心跳包的socket
+                # HEART_BEAT_CONDITION_VARIABLE.acquire(blocking=True)
+                print("Finish Login")
                 # if login successfully, then enter the game hall
                 # 如果登录成功，则进入游戏大厅
                 if login_result:
+                    # 进入大厅前要建立心跳链接
+                    # 等待建立心跳链接
+                    print("Waiting for Heart Beat to be Established")
+                    # wait for the heart beat to be established
+                    print(self.player.player_name)
+                    while self.game_server. \
+                            game_hall. \
+                            get_player_by_username(self.player.player_name). \
+                            player_heart_beat_socket_channel is None:
+
+
+                        # HEART_BEAT_CONDITION_VARIABLE.wait()
+                        pass
+
+                    print("Heart Beat Established")
                     break
 
             except KeyboardInterrupt as e:
@@ -252,11 +325,11 @@ class GameServerThreadEachPlayer(threading.Thread):
 
         '''
         After the user has input its password,
-+         /login user_name password 
++         /login player_name password 
         '''
         # STEP1.0.2.0
         #  用户输入密码后，服务端回显用户名和密码至客户端，格式如下
-        #  格式 /login user_name password
+        #  格式 /login player_name password
         #  Do Not Forget to Encode and Decode when Transferring Data
         encoded_username_password: str = f"/login {username} {password}\n"
         self.send_message(encoded_username_password)
@@ -265,6 +338,9 @@ class GameServerThreadEachPlayer(threading.Thread):
         # 等待结果，用户是否接受消息
         received_message: str = self.client_socket.recv(1024).decode()
         # here, the received_message should be "Received"
+
+        print(received_message)
+        print(self.user_info_file.check_account_password(username, password))
 
         # check the username and password
         # 检查用户名和密码
@@ -280,12 +356,13 @@ class GameServerThreadEachPlayer(threading.Thread):
             3. Waiting in room
             4. Playing a game
             '''
-            self.player: Player.Player = Player.Player(user_name=username,
-                                                       password=password,
-                                                       user_status=2,
-                                                       user_thread=self,
-                                                       user_socket=self.client_socket
-                                                       )
+            # 心跳频道之后建立
+            self.player: Player.Player = Player.Player(username,
+                                                       password,
+                                                       self.client_socket,
+                                                       self,
+                                                       player_status=1)
+
             # add the player to the game hall
             # 将玩家添加到游戏大厅
             # get the shared resource, the game hall
@@ -333,6 +410,8 @@ class GameServerThreadEachPlayer(threading.Thread):
     def game_hall(self):
         # wait for the user to choose the operation
         # 等待用户选择操作
+        print(self.player.player_name, "Game Hall Enter")
+
         while True:
             # STEP1.1.0.0
             # sent the error_msg to the client, say you are ready to send the command
@@ -422,14 +501,14 @@ class GameServerThreadEachPlayer(threading.Thread):
                     3. Waiting in room
                     4. Playing a game
                     '''
-                    self.player.user_status = 3
+                    self.player.player_status = 3
                     # although here is a break, the "finally" block will still be executed
 
                     # the client tell server start to wait
                     # 客户端告诉服务器开始等待
                     # STEP 1.1.1.1
                     start_wait_msg: str = self.client_socket.recv(1024).decode()
-                    print(self.player.user_name, start_wait_msg)
+                    print(self.player.player_name, start_wait_msg)
 
                     # start the game
                     # 开始游戏，有可能判定失败, wait
@@ -459,7 +538,6 @@ class GameServerThreadEachPlayer(threading.Thread):
                 # STEP1.1.1.1
                 self.client_socket.recv(1024).decode()
 
-
     def start_game(self):
         game_room: GameRoom.GameRoom = self.player.game_room
 
@@ -482,8 +560,6 @@ class GameServerThreadEachPlayer(threading.Thread):
         # pause the thread, wait for the game to finish
         # 暂停线程，等待游戏结束
         self.stop_thread()
-
-
 
 
 if __name__ == '__main__':

@@ -3,6 +3,7 @@ import threading
 import sys
 import OperationStatus
 import re
+import HeartBeatThreadClient
 
 
 class GameClient:
@@ -19,6 +20,13 @@ class GameClient:
         self.server_host: str = server_host
         # server's port it is listening on
         self.server_port: int = server_port
+
+        # Set later
+        self.server_socket_heart_beat: socket.socket | None = None
+
+        self.username: str | None = None
+        self.password: str | None = None
+
 
 
         # create the socket
@@ -39,6 +47,14 @@ class GameClient:
             print(e)
 
 
+        # 设置心跳的socket
+        self.server_socket_heart_beat: socket.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        try:
+            self.server_socket_heart_beat.connect((self.server_host, self.server_port))
+        except Exception as e:
+            print(e)
+
         # start the client
         # 开始客户端
         self.start()
@@ -53,6 +69,16 @@ class GameClient:
         The login process
         :return: None
         """
+        # STEP Head.0.0.0
+        # 要告诉服务器，这是登录的socket
+        # tell the server, this is the login socket
+        self.server_socket.send("Header:login".encode())
+
+        # STEP Head.0.0.1
+        # Received the message from the server, that the server is ready for the command
+        self.server_socket.recv(1024).decode()
+
+
         # Get input for sending
         while True:
             try:
@@ -101,13 +127,13 @@ class GameClient:
                 # STEP1.0.2.1
                 # send msg to the server, I received the message
                 self.server_socket.send("Client Received".encode())
-
+                print("STEP1.0.2.1", "Client Received")
 
                 # STEP1.0.3.0
                 # The result of the login verification
                 # 登录验证的结果
                 received_message: str = self.server_socket.recv(1024).decode()
-                print(received_message)
+                print("STEP1.0.3.0", received_message)
 
                 # STEP1.0.3.1
                 # send msg to the server, I received the message
@@ -116,6 +142,14 @@ class GameClient:
                 # if the username and password are correct, break the loop
                 # 如果用户名和密码正确，退出循环
                 if received_message == OperationStatus.OperationStatus.authentication_successful:
+                    # 储存用户名
+                    # save the username
+                    self.username: str = username
+                    # 储存密码
+                    # save the password
+                    self.password: str = password
+
+                    print("Login successful")
                     break
 
             except KeyboardInterrupt:
@@ -131,6 +165,22 @@ class GameClient:
 
     def game_hall_loop(self):
         command: str
+        # 这个时候要建立心跳链接，定时发送信息，因为如果断开连接，服务器并不知道
+        # 新线程
+        # 设置心跳
+        print("start setting heart beat")
+
+        # set the heart beat
+        heart_beat_thread: HeartBeatThreadClient.HeartBeatThreadClient = HeartBeatThreadClient.HeartBeatThreadClient(
+            self.server_socket_heart_beat,
+            self.username
+        )
+
+        # start the thread
+        # 开始线程
+        heart_beat_thread.start()
+        print("finish setting, start heart beat")
+
         while True:
             # STEP1.1.0.0
             # Receive the message from the server,
