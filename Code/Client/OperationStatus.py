@@ -3,7 +3,6 @@ import dataclasses
 
 @dataclasses.dataclass(init=False, frozen=True)
 class OperationStatus:
-
     authentication_successful: str = "1001 Authentication successful"
     authentication_failed: str = "1002 Authentication failed"
 
@@ -20,6 +19,31 @@ class OperationStatus:
     bye_bye: str = "4001 Bye bye"
     unrecognized_message: str = "4002 Unrecognized message"
 
+    player_quit: str = "4200 Player quit"
+
     def __init__(self):
         pass
 
+
+class UnrecognizedMessageError(Exception):
+    pass
+
+
+class RoomFullError(Exception):
+    pass
+
+
+class InvalidOperationError(Exception):
+    pass
+
+
+class PlayerNotFoundError(Exception):
+    pass
+
+
+class PlayerNormalQuit(Exception):
+    pass
+
+
+class PlayerStartGame(Exception):
+    pass

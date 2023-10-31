@@ -27,6 +27,12 @@ class GameClient:
         self.username: str | None = None
         self.password: str | None = None
 
+        # flag for quit game
+        # 退出游戏的标志
+        self.quit_game_room_other_exit: bool = False
+        # 猜测的标志
+        self.on_guessing: bool = False
+
 
 
         # create the socket
@@ -127,13 +133,13 @@ class GameClient:
                 # STEP1.0.2.1
                 # send msg to the server, I received the message
                 self.server_socket.send("Client Received".encode())
-                print("STEP1.0.2.1", "Client Received")
+                # print("STEP1.0.2.1", "Client Received")
 
                 # STEP1.0.3.0
                 # The result of the login verification
                 # 登录验证的结果
                 received_message: str = self.server_socket.recv(1024).decode()
-                print("STEP1.0.3.0", received_message)
+                # print("STEP1.0.3.0", received_message)
 
                 # STEP1.0.3.1
                 # send msg to the server, I received the message
@@ -168,18 +174,19 @@ class GameClient:
         # 这个时候要建立心跳链接，定时发送信息，因为如果断开连接，服务器并不知道
         # 新线程
         # 设置心跳
-        print("start setting heart beat")
+        # print("start setting heart beat")
 
         # set the heart beat
         heart_beat_thread: HeartBeatThreadClient.HeartBeatThreadClient = HeartBeatThreadClient.HeartBeatThreadClient(
             self.server_socket_heart_beat,
+            self,
             self.username
         )
 
         # start the thread
         # 开始线程
         heart_beat_thread.start()
-        print("finish setting, start heart beat")
+        # print("finish setting, start heart beat")
 
         while True:
             # STEP1.1.0.0
@@ -219,6 +226,7 @@ class GameClient:
                 # wait for receiving the message from the server
                 # Server received
                 # 等待服务器通知，游戏开始
+                # 创建游戏线程，并等待游戏线程结束
                 self.game_loop()
                 # after the game, back to the game hall
 
@@ -239,6 +247,7 @@ class GameClient:
                 self.server_socket.send("Client Received".encode())
 
 
+
     def game_loop(self):
 
         # STEP 1.2.0.0
@@ -253,7 +262,25 @@ class GameClient:
             # STEP 1.2.0.1
             # input command of guess true or false
             # 输入猜测的命令
+            # 设置开始猜测，这样如果收到退出游戏的消息，就会提前让心跳线程打印退出游戏的消息
+            self.on_guessing = True
             command: str = input()
+            # 设置结束猜测
+            self.on_guessing = False
+
+            # flag 不为False，说明有人退出游戏
+            # if the flag is not False, it means someone quit the game
+            if self.quit_game_room_other_exit:
+                # STEP
+                # 接受服务器的你赢了消息，游戏结束
+                received_message: str = self.server_socket.recv(1024).decode()
+                # 但是由于前面心跳线程已经打印了退出游戏的消息，所以这里不用打印
+                # but the heart beat thread has already print the message of quit game
+                # so here we don't need to print
+                # print(received_message)
+                break
+
+
             # only true/false will send to the server
             # 只有true/false会发送到服务器，true/false不区分大小写
             if matched_user_command := re.fullmatch(r'/guess (?P<guess>[Tt][Rr][Uu][Ee]|[Ff][Aa][Ll][Ss][Ee])', command):
@@ -288,7 +315,7 @@ class GameClient:
 
         # back to game hall
         # 回到游戏大厅
-        self.game_hall_loop()
+        # self.game_hall_loop()
 
 
 

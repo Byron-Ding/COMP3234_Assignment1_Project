@@ -1,12 +1,14 @@
 import socket
 import threading
 import time
-
+import OperationStatus
+import GameClient
 
 
 class HeartBeatThreadClient(threading.Thread):
 
     def __init__(self, server_socket: socket.socket,
+                 player_client: GameClient.GameClient,
                  player_name: str,
                  heart_beat_interval: int = 0.5):
         super().__init__()
@@ -18,6 +20,7 @@ class HeartBeatThreadClient(threading.Thread):
         # 格式是 username:{real_username}
         self.player_name: str = player_name
 
+        self.player_client: GameClient.GameClient = player_client
 
     def run(self):
         # 定期发送心跳包
@@ -33,6 +36,9 @@ class HeartBeatThreadClient(threading.Thread):
             # send the heart beat package
             # 发送心跳包
             # 发送的格式为：Header:heart beat:username
-            self.server_socket.send(player_info_header.encode())
+            self.server_socket.send("Heart beat:atrium:send".encode())
+            # Receive the message from the server, check both alive
+            received_heart_beat: str = self.server_socket.recv(1024).decode()
+
             # print("finish sending heart beat package NN")
             time.sleep(self.heart_beat_interval)

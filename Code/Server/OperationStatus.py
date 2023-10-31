@@ -19,6 +19,8 @@ class OperationStatus:
     bye_bye: str = "4001 Bye bye"
     unrecognized_message: str = "4002 Unrecognized message"
 
+    player_quit: str = "4200 Player quit"
+
     def __init__(self):
         pass
 

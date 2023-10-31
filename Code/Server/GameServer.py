@@ -198,7 +198,8 @@ class GameServerThreadEachPlayer(threading.Thread):
             print("Heart skt is:", self.client_socket is None)
             print(self.game_server.game_hall.correspond_heart_beating_socket_to_player_socket(username,
                                                                                               self.client_socket))
-            print(self.game_server.game_hall.get_player_by_username(username).player_name)
+            self.player = self.game_server.game_hall.get_player_by_username(username)
+            print(self.player.player_name)
             print(self.game_server.game_hall.get_player_by_username(username).player_heart_beat_socket_channel is None)
             # 心跳包建立后，广播恢复线程，但是要先获取锁
             # After the heart beat is established, broadcast to resume the thread, but need to get the lock first
@@ -213,8 +214,32 @@ class GameServerThreadEachPlayer(threading.Thread):
             # 设置超时时间为1秒
             # set the timeout to 1 second
             self.client_socket.settimeout(1)
-            while True:
-                self.client_socket.recv(1024)
+            try:
+                while True:
+                    self.client_socket.recv(1024)
+                    # tell the client, the message is received
+                    self.client_socket.send("Heart beat:ventricle:response".encode())
+
+            except Exception as e:
+                print("Heart Beat Connection Error", e, self.player.player_name)
+
+                '''
+                # 判断玩家是否在房间里
+                # check whether the player is in the room
+                if self.player.player_status == Player.Player.PLAYING_A_GAME:
+                    # if the player is in the room, remove the player from the room
+                    # 如果玩家在房间里，将玩家从房间里移除
+                    self.player.game_room.remove_player(self.player)
+
+                    # remove the player from the game hall
+                    # 将玩家从游戏大厅移除
+                    self.game_server.game_hall.remove_player(self.player)
+                    
+                    # 移除socket
+                    # remove the socket
+                    self.player.player_socket.close()
+                    self.player.player_heart_beat_socket_channel.close()
+                '''
 
             # ——————————————————————————Heart Beat—————————————————————————— #
 
