@@ -134,6 +134,7 @@ class GameRoom:
 
         def receive_message_from_all(self, received_messages: list[str]) -> bool:
             whether_error: bool = False
+            # STEP NORMAL_RECEIVE1.2.0.1
             for player in self.player_list:
                 try:
                     received_message: str = player.player_socket.recv(1024).decode()
@@ -153,6 +154,7 @@ class GameRoom:
             # if any error, means some player is disconnected
             # send msg to other player, you win
             # clear the room
+            # Error.receive.1
             if whether_error:
                 print(self.player_list)
                 temp_list = self.player_list.copy()
@@ -162,10 +164,14 @@ class GameRoom:
                                                      OperationStatus.OperationStatus.win_the_game_since_opponent_quit)
                     print("finish sending win the game message", player.player_name)
 
+
                 # receive the message from the player, the player receive the message
-                # 接收玩家的消息，玩家接收消息
+                # 接收玩家的消息，其他玩家确认有人离开了
                 for player in self.player_list:
-                    player.player_socket.recv(1024).decode()
+                    # Error.quit.1
+                    msg: str = player.player_socket.recv(1024).decode()
+                    print("finish receiving message", player.player_name, msg)
+
 
                 # set all player's status to hall
                 # 设置所有玩家的状态为大厅

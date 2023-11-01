@@ -250,8 +250,7 @@ class GameServerThreadEachPlayer(threading.Thread):
                     # self.player.player_thread.join()
 
                     # 退出线程
-                    # exit the thread
-                    sys.exit(0)
+                    # exit the thr
 
 
 
@@ -447,11 +446,11 @@ class GameServerThreadEachPlayer(threading.Thread):
             self.client_socket.recv(1024).decode()
 
     def game_hall(self):
-        # wait for the user to choose the operation
-        # 等待用户选择操作
-        print(self.player.player_name, "Game Hall Enter")
-
         while True:
+            # wait for the user to choose the operation
+            # 等待用户选择操作
+            print("Player:", self.player.player_name, "; Game Hall Enter")
+
             # STEP1.1.0.0
             # sent the error_msg to the client, say you are ready to send the command
             # 将消息发送给客户端，表示你可以发送命令了
@@ -553,6 +552,9 @@ class GameServerThreadEachPlayer(threading.Thread):
                     # start the game
                     # 开始游戏，有可能判定失败, wait
                     self.start_game()
+
+                    # after_game = self.player.player_socket.recv(1024).decode()
+                    # print(after_game)
 
             elif user_command == "/exit":
                 # if the user want to exit the game hall

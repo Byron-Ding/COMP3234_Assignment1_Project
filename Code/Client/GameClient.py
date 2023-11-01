@@ -192,7 +192,9 @@ class GameClient:
             # STEP1.1.0.0
             # Receive the message from the server,
             # that the server is ready for the command
-            self.server_socket.recv(1024).decode()
+            header = self.server_socket.recv(1024).decode()
+
+            # print(header)
 
             # STEP1.1.0.1
             command = input()
@@ -206,6 +208,8 @@ class GameClient:
             # send the command to the server
             # 发送命令到服务器
             self.server_socket.send(command.encode())
+
+            # print(command)
 
             # STEP1.1.1.0
             # get the server's response, exception or success
@@ -258,6 +262,11 @@ class GameClient:
         received_message: str = self.server_socket.recv(1024).decode()
         print(received_message)
 
+        if received_message == OperationStatus.OperationStatus.win_the_game_since_opponent_quit:
+            # Error.quit.1
+            self.server_socket.send("STEP1.2.2.0 Client Received".encode())
+            return
+
         while True:
             # STEP 1.2.0.1
             # input command of guess true or false
@@ -296,18 +305,26 @@ class GameClient:
                 # 发送到服务器
                 self.server_socket.send(guess.encode())
 
-                # STEP 1.2.1.0
+                # STEP 1.2.1.0 | Error.receive.1
                 # receive the message from the server, RESULT
                 # 接收服务器的消息
                 received_message: str = self.server_socket.recv(1024).decode()
                 # the received message should be the result of the game
                 print(received_message)
 
-                # STEP1.2.2.0 (NEED FIX)
-                # tell the server, I received the RESULT
-                self.server_socket.send("STEP1.2.2.0 Client Received".encode())
+                if received_message == OperationStatus.OperationStatus.win_the_game_since_opponent_quit:
+                    # Error.quit.1
+                    self.server_socket.send("STEP1.2.2.0 Client Received".encode())
+                    break
 
-                break
+                else:
+                    # print("STEP1.2.2.0 START")
+                    # STEP1.2.2.0 (NEED FIX)
+                    # tell the server, I received the RESULT
+                    self.server_socket.send("STEP1.2.2.0 Client Received".encode())
+                    # print("STEP1.2.2.0 END")
+
+                    break
 
             else:
                 print(OperationStatus.OperationStatus.unrecognized_message)
