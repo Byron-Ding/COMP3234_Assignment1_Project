@@ -1,4 +1,9 @@
-# COMP3234_Assignment1_Project
+# COMP3234_Programming_Assignment_Project_1
+
+### Basic Information
+- Name: Ding Zedong
+- UID: 3035947245
+- Email: zedong@connect.hku.hk
 
 ### Files
 - The main files are "GameClient.py" and "GameServer.py".
