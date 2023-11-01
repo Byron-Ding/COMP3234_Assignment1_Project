@@ -132,7 +132,7 @@ class GameClient:
 
                 # STEP1.0.2.1
                 # send msg to the server, I received the message
-                self.server_socket.send("Client Received".encode())
+                self.server_socket.send("STEP1.0.2.1 Client Received".encode())
                 # print("STEP1.0.2.1", "Client Received")
 
                 # STEP1.0.3.0
@@ -143,7 +143,7 @@ class GameClient:
 
                 # STEP1.0.3.1
                 # send msg to the server, I received the message
-                self.server_socket.send("Client Received".encode())
+                self.server_socket.send("STEP1.0.3.1 Client Received".encode())
 
                 # if the username and password are correct, break the loop
                 # 如果用户名和密码正确，退出循环
@@ -235,7 +235,7 @@ class GameClient:
             elif received_message == OperationStatus.OperationStatus.bye_bye:
                 # STEP1.1.1.1
                 # tell the server, I received the message
-                self.server_socket.send("Client Received".encode())
+                self.server_socket.send("STEP1.1.1.1 Client Received".encode())
 
                 self.server_socket.close()
                 sys.exit(0)
@@ -244,7 +244,7 @@ class GameClient:
                 # STEP1.1.1.1
                 # for any other message
                 # tell the server, I received the message
-                self.server_socket.send("Client Received".encode())
+                self.server_socket.send("STEP1.1.1.1 Client Received".encode())
 
 
 
@@ -262,7 +262,7 @@ class GameClient:
             # STEP 1.2.0.1
             # input command of guess true or false
             # 输入猜测的命令
-            # 设置开始猜测，这样如果收到退出游戏的消息，就会提前让心跳线程打印退出游戏的消息
+            # 设置开始猜测，这样如果收到退出游戏的消息
             self.on_guessing = True
             command: str = input()
             # 设置结束猜测
@@ -270,16 +270,15 @@ class GameClient:
 
             # flag 不为False，说明有人退出游戏
             # if the flag is not False, it means someone quit the game
-            if self.quit_game_room_other_exit:
+            # if self.quit_game_room_other_exit:
                 # STEP
                 # 接受服务器的你赢了消息，游戏结束
-                received_message: str = self.server_socket.recv(1024).decode()
+                # received_message: str = self.server_socket.recv(1024).decode()
                 # 但是由于前面心跳线程已经打印了退出游戏的消息，所以这里不用打印
                 # but the heart beat thread has already print the message of quit game
                 # so here we don't need to print
                 # print(received_message)
-                break
-
+                # break
 
             # only true/false will send to the server
             # 只有true/false会发送到服务器，true/false不区分大小写
@@ -306,7 +305,7 @@ class GameClient:
 
                 # STEP1.2.2.0 (NEED FIX)
                 # tell the server, I received the RESULT
-                self.server_socket.send("Client Received".encode())
+                self.server_socket.send("STEP1.2.2.0 Client Received".encode())
 
                 break
 
@@ -316,7 +315,6 @@ class GameClient:
         # back to game hall
         # 回到游戏大厅
         # self.game_hall_loop()
-
 
 
 if __name__ == '__main__':

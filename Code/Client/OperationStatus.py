@@ -15,6 +15,7 @@ class OperationStatus:
     result_is_tie: str = "3023 The result is a tie"
     win_the_game: str = "3021 You are the winner"
     lose_the_game: str = "3022 You lost this game"
+    win_the_game_since_opponent_quit: str = "Another Gamer quit the game" + "\n" + "3024 You are the winner"
 
     bye_bye: str = "4001 Bye bye"
     unrecognized_message: str = "4002 Unrecognized message"

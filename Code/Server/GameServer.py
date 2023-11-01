@@ -180,6 +180,10 @@ class GameServerThreadEachPlayer(threading.Thread):
                 self.game_server.print_message(
                     "Player Normal Quit: " + repr(e) + " player_name: " + self.player.player_name)
 
+                # 还是要结束socket
+                # close the socket
+                self.player.player_socket.close()
+
             except Exception as e:
                 self.game_server.print_message("Unknown Error: " + repr(e) + " player_name: " + self.player.player_name)
 
@@ -223,10 +227,11 @@ class GameServerThreadEachPlayer(threading.Thread):
             except Exception as e:
                 print("Heart Beat Connection Error", e, self.player.player_name)
 
-                '''
+
                 # 判断玩家是否在房间里
                 # check whether the player is in the room
-                if self.player.player_status == Player.Player.PLAYING_A_GAME:
+                if self.player.player_status == Player.Player.PLAYING_A_GAME or \
+                        self.player.player_status == Player.Player.WAITING_IN_ROOM:
                     # if the player is in the room, remove the player from the room
                     # 如果玩家在房间里，将玩家从房间里移除
                     self.player.game_room.remove_player(self.player)
@@ -239,7 +244,16 @@ class GameServerThreadEachPlayer(threading.Thread):
                     # remove the socket
                     self.player.player_socket.close()
                     self.player.player_heart_beat_socket_channel.close()
-                '''
+
+                    # 杀死线程
+                    # kill the thread
+                    # self.player.player_thread.join()
+
+                    # 退出线程
+                    # exit the thread
+                    sys.exit(0)
+
+
 
             # ——————————————————————————Heart Beat—————————————————————————— #
 
@@ -247,7 +261,7 @@ class GameServerThreadEachPlayer(threading.Thread):
 
     def resume_thread_to_game(self) -> None:
         """
-        Resume the thread, the game is finished, back to the game hall
+        Resume the thread, the game is finished, back to the game hallf
         :return: None
         """
         self.thread_lock.set()
@@ -441,7 +455,7 @@ class GameServerThreadEachPlayer(threading.Thread):
             # STEP1.1.0.0
             # sent the error_msg to the client, say you are ready to send the command
             # 将消息发送给客户端，表示你可以发送命令了
-            self.send_message("Server Ready")
+            self.send_message("STEP1.1.0.0 Server Ready")
 
             # get the command
             # 获取命令
@@ -449,6 +463,7 @@ class GameServerThreadEachPlayer(threading.Thread):
             user_command: str = self.client_socket.recv(1024).decode()
             # del the head, the format is hall_command:command
             # 删除头，格式 hall_command:command
+            print(user_command)
             user_command = user_command[13:]
 
             # /list to list all the rooms

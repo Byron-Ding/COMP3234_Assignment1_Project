@@ -100,8 +100,11 @@ class GameRoom:
             # send msg to other player, you win
             # clear the room
             if whether_error:
-                for player in self.player_list:
-                    self.send_message_to_player_safe(player, OperationStatus.OperationStatus.win_the_game)
+                temp_list = self.player_list.copy()
+
+                for player in temp_list:
+                    self.send_message_to_player_safe(player,
+                                                     OperationStatus.OperationStatus.win_the_game_since_opponent_quit)
 
                     # receive the message from the player, the player receive the message
                     # 接收玩家的消息，玩家接收消息
@@ -112,6 +115,7 @@ class GameRoom:
                 for player in self.player_list:
                     # finish pause the thread of Hall
                     # 完成暂停大厅的线程
+                    print(player.player_name, "resume")
                     player.player_thread.resume_thread_to_game()
 
                     player.status = Player.Player.IN_THE_GAME_HALL
@@ -128,13 +132,6 @@ class GameRoom:
             else:
                 return True
 
-        def send_message_to_all_by_heart_channel(self, message: str):
-            whether_error: bool = False
-            for player in self.player_list:
-                whether_error: bool = self.send_message_to_player_safe_by_heart_channel(player, message)
-                # heart_beat 是一发一收，发了要立马接受，否则会阻塞
-                receive_msg = player.player_heart_beat_socket_channel.recv(1024).decode()
-
         def receive_message_from_all(self, received_messages: list[str]) -> bool:
             whether_error: bool = False
             for player in self.player_list:
@@ -148,26 +145,34 @@ class GameRoom:
                     # add to the list
                     received_messages.append(received_message)
 
+            # 同时如果玩家数量小于指定数量，意味着有玩家退出了游戏，心跳线程已经自动清除了玩家
+            # 这个时候也是错误。因为玩家退出游戏，游戏应该结束。
+            if len(self.player_list) < self.room.MAX_PLAYER_NUMBER:
+                whether_error: bool = True
+
             # if any error, means some player is disconnected
             # send msg to other player, you win
             # clear the room
             if whether_error:
                 print(self.player_list)
-                for player in self.player_list:
+                temp_list = self.player_list.copy()
+                for player in temp_list:
                     print(player.player_name)
-                    self.send_message_to_player_safe(player, OperationStatus.OperationStatus.win_the_game)
+                    self.send_message_to_player_safe(player,
+                                                     OperationStatus.OperationStatus.win_the_game_since_opponent_quit)
                     print("finish sending win the game message", player.player_name)
 
                 # receive the message from the player, the player receive the message
                 # 接收玩家的消息，玩家接收消息
-                # for player in self.player_list:
-                #     player.player_socket.recv(1024).decode()
+                for player in self.player_list:
+                    player.player_socket.recv(1024).decode()
 
                 # set all player's status to hall
                 # 设置所有玩家的状态为大厅
                 for player in self.player_list:
                     # finish pause the thread of Hall
                     # 完成暂停大厅的线程
+                    print(player.player_name, "resume")
                     player.player_thread.resume_thread_to_game()
 
                     player.status = Player.Player.IN_THE_GAME_HALL
@@ -204,40 +209,6 @@ class GameRoom:
             except ConnectionError as e:
                 self.game_server.print_message("Connection Error:", player.player_name, repr(e))
 
-                # self.room.remove_player(player)
-                return True
-
-            except Exception as e:
-                self.game_server.print_message("Unknown Error:", player.player_name, repr(e))
-
-                # self.room.remove_player(player)
-                return True
-
-            else:
-                return False
-
-        # a decorator to check send msg to all player in the room
-        # any error will be raised
-        # the player will be removed from the room
-        # other player will receive a message of win
-        def send_message_to_player_safe_by_heart_channel(self, player: Player.Player, message: str) -> bool:
-
-            """
-            Try send the message to a single player, and receive the response
-            If failed, remove the player from the room, AND return False
-            If success, return True
-            :param player:
-            :param message:
-            :return:
-            """
-
-            try:
-                # send the message 0
-                # get the player's socket
-                player.player_heart_beat_socket_channel.send(message.encode())
-            except ConnectionError as e:
-                self.game_server.print_message("Connection Error:", player.player_name, repr(e))
-
                 self.room.remove_player(player)
                 return True
 
@@ -264,8 +235,10 @@ class GameRoom:
             self.game_server.print_message("Sending game started message......")
             try:
                 self.send_message_to_all(OperationStatus.OperationStatus.game_started)
+                print("STEP 1.2.0.0")
             except Exception as e:
                 self.game_server.print_message(e)
+                print("STEP 1.2.0.0, ERROR")
                 return
 
             # generate a random boolean
@@ -283,8 +256,10 @@ class GameRoom:
             # filter the illegal command is at the client side
             try:
                 self.receive_message_from_all(player_guess_str)
+                print("STEP 1.2.0.1")
             except Exception as e:
                 self.game_server.print_message(e)
+                print("STEP 1.2.0.1, ERROR")
                 return
 
 
