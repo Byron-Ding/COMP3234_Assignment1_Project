@@ -162,12 +162,14 @@ class GameClient:
                 print('\n')
                 print("Terminated abnormally!!")
                 self.server_socket.close()
-                sys.exit(1)
+                # 0 means normal exit, 1 means exceptional exit
+                sys.exit(0)
 
             except Exception as e:
                 print(e)
                 self.server_socket.close()
-                sys.exit(1)
+                # 0 means normal exit, 1 means exceptional exit
+                sys.exit(0)
 
     def game_hall_loop(self):
         command: str
@@ -338,7 +340,7 @@ if __name__ == '__main__':
     '''
     if len(sys.argv) != 3:
         print("Usage: python3 GameClient.py <server_host> <server_port>")
-        sys.exit(1)
+        sys.exit(0)
 
     server_host: str = sys.argv[1]
     server_port: int = int(sys.argv[2])
